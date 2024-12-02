@@ -1,75 +1,27 @@
-<androidx.constraintlayout.widget.ConstraintLayout
+<LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F5F5F5"
+    android:orientation="vertical"
     android:padding="16dp">
 
-    <!-- Toggle Button (ON/OFF) -->
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/toggleButton"
-        android:layout_width="200dp"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp"
-        android:text="OFF"
-        android:textColor="#FFFFFF"
-        android:textSize="18sp"
-        app:cornerRadius="16dp"
-        app:backgroundTint="@color/material_red"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-    <!-- Edit Button -->
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/editButton"
-        android:layout_width="200dp"
-        android:layout_height="wrap_content"
-        android:text="Edit"
-        android:textColor="#FFFFFF"
-        android:textSize="18sp"
-        app:cornerRadius="16dp"
-        app:backgroundTint="@color/material_blue"
-        app:layout_constraintTop_toBottomOf="@id/toggleButton"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-    <!-- CardView for Status Information -->
-    <androidx.cardview.widget.CardView
-        android:id="@+id/statusCard"
+    <Button
+        android:id="@+id/addButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="32dp"
-        app:cardCornerRadius="16dp"
-        app:cardElevation="8dp"
-        app:layout_constraintTop_toBottomOf="@id/editButton"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        android:text="Add Room"
+        android:layout_marginBottom="16dp" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
 
         <LinearLayout
+            android:id="@+id/roomContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="16dp">
-
-            <TextView
-                android:id="@+id/tvDeviceName"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Cihaz Adı: Varsayılan Cihaz"
-                android:textColor="#333333"
-                android:textSize="16sp"
-                android:layout_marginBottom="8dp" />
-
-            <TextView
-                android:id="@+id/tvIpAddress"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="IP Adresi: 192.168.1.100"
-                android:textColor="#333333"
-                android:textSize="16sp" />
-        </LinearLayout>
-    </androidx.cardview.widget.CardView>
-
-</androidx.constraintlayout.widget.ConstraintLayout>
+            android:orientation="vertical" />
+    </ScrollView>
+</LinearLayout>

@@ -9,14 +9,14 @@
         android:id="@+id/etName"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Ad"
-        android:inputType="textPersonName"
-        android:layout_marginBottom="8dp" />
+        android:hint="Oda Adı"
+        android:inputType="text" />
 
     <EditText
         android:id="@+id/etIp"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="IP Adresi"
-        android:inputType="textUri" />
+        android:inputType="textUri"
+        android:layout_marginTop="8dp" />
 </LinearLayout>

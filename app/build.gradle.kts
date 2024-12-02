@@ -58,7 +58,7 @@ dependencies {
     implementation(libs.material)
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("com.google.android.material:material:1.9.0") // Material Components
-
+    implementation("com.google.code.gson:gson:2.10.1")
 
 
     // Test için:
