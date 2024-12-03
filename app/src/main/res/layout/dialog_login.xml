@@ -11,4 +11,12 @@
         android:layout_height="wrap_content"
         android:hint="E-posta"
         android:inputType="textEmailAddress" />
+
+    <EditText
+        android:id="@+id/etPassword"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Şifre"
+        android:inputType="textPassword"
+        android:layout_marginTop="8dp" />
 </LinearLayout>

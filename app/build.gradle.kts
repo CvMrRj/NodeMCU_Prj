@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.storage.CacheResetOnProcessCanceled.enabled
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -9,6 +11,7 @@ plugins {
 android {
     namespace = "com.example.esp8266control"
     compileSdk = 34
+
 
     defaultConfig {
         applicationId = "com.example.esp8266control"
@@ -59,6 +62,8 @@ dependencies {
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("com.google.android.material:material:1.9.0") // Material Components
     implementation("com.google.code.gson:gson:2.10.1")
+    implementation("androidx.viewpager:viewpager:1.0.0")
+    implementation("com.google.android.material:material:1.9.0")
 
 
     // Test için:
