@@ -1,43 +1,105 @@
 package com.example.esp8266control
 
-import androidx.appcompat.app.AppCompatActivity
+import Room
 import android.os.Bundle
-import android.widget.Button
-import android.widget.Toast
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.Response
-import java.io.IOException
+import android.view.LayoutInflater
+import android.widget.*
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
+import androidx.viewpager.widget.ViewPager
+import com.google.android.material.tabs.TabLayout
 
 class MainActivity : AppCompatActivity() {
+
+    private lateinit var viewPager: ViewPager
+    private lateinit var tabs: TabLayout
+    private var loggedInEmail: String? = null
+    private val rooms = mutableListOf<Room>() // Oda listesi
+    private lateinit var sharedPreferencesHelper: SharedPreferencesHelper
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        val btnOn = findViewById<Button>(R.id.btnOn)
-        val btnOff = findViewById<Button>(R.id.btnOff)
+        // SharedPreferencesHelper'ı başlat
+        sharedPreferencesHelper = SharedPreferencesHelper(this)
 
-        btnOn.setOnClickListener { sendMockCommand("http://localhost:8080") }
-        btnOff.setOnClickListener { sendMockCommand("https://localhost:8080") }
+        // Kaydedilen odaları yükle
+        rooms.addAll(sharedPreferencesHelper.loadRooms())
+
+        // ViewPager ve TabLayout'u tanımla
+        viewPager = findViewById(R.id.viewPager)
+        tabs = findViewById(R.id.tabs)
+
+        // Kullanıcı giriş kontrolü
+        loggedInEmail = sharedPreferencesHelper.getLoggedInEmail()
+        if (loggedInEmail == null) {
+            // Giriş yapılmamışsa login ekranını göster
+            showLoginDialog()
+        } else {
+            // Giriş yapılmışsa sekmeleri yükle
+            setupTabs()
+        }
     }
 
-    private fun sendMockCommand(url: String) {
-        val client = OkHttpClient()
-        val request = Request.Builder().url(url).build()
+    private fun showLoginDialog() {
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_login, null)
+        val etEmail = dialogView.findViewById<EditText>(R.id.etEmail)
+        val etPassword = dialogView.findViewById<EditText>(R.id.etPassword)
 
-        Thread {
-            try {
-                val response: Response = client.newCall(request).execute()
-                runOnUiThread {
-                    if (response.isSuccessful) {
-                        Toast.makeText(this, "Komut gönderildi: $url", Toast.LENGTH_SHORT).show()
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("Giriş Yap")
+            .setView(dialogView)
+            .setPositiveButton("Giriş Yap") { _, _ ->
+                val email = etEmail.text.toString().trim()
+                val password = etPassword.text.toString().trim()
+
+                if (email.isNotEmpty() && password.isNotEmpty()) {
+                    if (password == "123456") { // Şifre kontrolü
+                        loggedInEmail = email
+                        sharedPreferencesHelper.saveLoggedInEmail(email) // Giriş yapan kullanıcıyı kaydet
+                        setupTabs()
                     } else {
-                        Toast.makeText(this, "Komut başarısız: ${response.code}", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, "Hatalı şifre. Lütfen tekrar deneyin.", Toast.LENGTH_SHORT).show()
+                        showLoginDialog() // Yanlış şifre durumunda tekrar login ekranını aç
                     }
+                } else {
+                    Toast.makeText(this, "Lütfen tüm alanları doldurun.", Toast.LENGTH_SHORT).show()
+                    showLoginDialog() // Eksik bilgi durumunda tekrar login ekranını aç
                 }
-            } catch (e: IOException) {
-                runOnUiThread { Toast.makeText(this, "Bağlantı hatası: ${e.message}", Toast.LENGTH_SHORT).show() }
             }
-        }.start()
+            .setCancelable(false) // Kullanıcı giriş yapmadan devam edemez
+            .create()
+
+        dialog.show()
     }
+
+    private fun setupTabs() {
+        val tabAdapter = TabAdapter(supportFragmentManager)
+        val isAdmin = loggedInEmail == "mertcevik1994@hotmail.com"
+
+        // HomeFragment ve SettingsFragment'a admin durumunu aktar
+        tabAdapter.addFragment(HomeFragment(rooms, isAdmin), "Home")
+        if (isAdmin) {
+            tabAdapter.addFragment(SettingsFragment(rooms), "Settings")
+        }
+
+        viewPager.adapter = tabAdapter
+        tabs.setupWithViewPager(viewPager)
+    }
+
+
+    override fun onPause() {
+        super.onPause()
+        // Uygulama kapandığında odaları kaydet
+        sharedPreferencesHelper.saveRooms(rooms)
+    }
+
+    // Çıkış yapma işlemi
+    fun logout() {
+        sharedPreferencesHelper.clearLoggedInEmail()
+        finish() // Uygulamayı yeniden başlatmak için kapat
+        startActivity(intent)
+    }
+
 }

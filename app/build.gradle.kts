@@ -1,7 +1,10 @@
+import org.jetbrains.kotlin.storage.CacheResetOnProcessCanceled.enabled
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     alias(libs.plugins.compose.compiler) // Compose Compiler burada aktif ediliyor
+    id("com.google.gms.google-services")
 
 }
 
@@ -9,9 +12,10 @@ android {
     namespace = "com.example.esp8266control"
     compileSdk = 34
 
+
     defaultConfig {
         applicationId = "com.example.esp8266control"
-        minSdk = 21
+        minSdk = 23
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
@@ -49,6 +53,17 @@ dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.material3.android)
     implementation("com.squareup.okhttp3:okhttp:4.11.0")
+    implementation(platform("com.google.firebase:firebase-bom:33.6.0"))
+    implementation("com.google.firebase:firebase-analytics")
+    implementation(libs.firebase.auth.ktx)
+    implementation(libs.firebase.database.ktx)
+    implementation("androidx.constraintlayout:constraintlayout:2.1.4")
+    implementation(libs.material)
+    implementation("androidx.constraintlayout:constraintlayout:2.1.4")
+    implementation("com.google.android.material:material:1.9.0") // Material Components
+    implementation("com.google.code.gson:gson:2.10.1")
+    implementation("androidx.viewpager:viewpager:1.0.0")
+    implementation("com.google.android.material:material:1.9.0")
 
 
     // Test için:
