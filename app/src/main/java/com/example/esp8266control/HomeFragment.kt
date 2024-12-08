@@ -7,7 +7,12 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.LinearLayout
+import android.widget.Toast
 import androidx.fragment.app.Fragment
+import com.google.firebase.database.FirebaseDatabase
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class HomeFragment(private val rooms: List<Room>, private val isAdmin: Boolean) : Fragment() {
 
@@ -19,7 +24,6 @@ class HomeFragment(private val rooms: List<Room>, private val isAdmin: Boolean) 
     ): View? {
         val view = inflater.inflate(R.layout.fragment_home, container, false)
         containerLayout = view.findViewById(R.id.roomContainer)
-
 
         // Logout butonunu tanımla
         val logoutButton = view.findViewById<Button>(R.id.btnLogout)
@@ -42,21 +46,63 @@ class HomeFragment(private val rooms: List<Room>, private val isAdmin: Boolean) 
         for (room in rooms) {
             // Admin ise tüm odaları göster, değilse sadece görünür odaları
             if (isAdmin || room.visible) {
+                val row = LinearLayout(requireContext()).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    setPadding(8, 8, 8, 8)
+                }
+
                 val button = Button(requireContext()).apply {
                     text = room.name
-                    setBackgroundColor(
-                        if (room.isOn) resources.getColor(android.R.color.holo_green_light)
-                        else resources.getColor(android.R.color.holo_red_light)
-                    )
+                    setBackgroundColor(resources.getColor(android.R.color.black)) // Başlangıç rengi
+
                     setOnClickListener {
-                        room.isOn = !room.isOn
-                        setBackgroundColor(
-                            if (room.isOn) resources.getColor(android.R.color.holo_green_light)
-                            else resources.getColor(android.R.color.holo_red_light)
-                        )
+                        // Butona basıldığında önce yeşil yap
+                        setBackgroundColor(resources.getColor(android.R.color.holo_green_light))
+                        updateLedState(true) // LED'i aç
+
+                        // 1 saniye sonra beyaz yap
+                        postDelayed({
+                            setBackgroundColor(resources.getColor(android.R.color.black))
+                            updateLedState(false) // LED'i kapat
+                        }, 500)
                     }
                 }
-                containerLayout?.addView(button)
+
+                row.addView(button)
+                containerLayout?.addView(row)
+            }
+        }
+    }
+
+    private fun updateLedState(turnOn: Boolean) {
+        val database = FirebaseDatabase.getInstance("https://esp8266-617c1-default-rtdb.europe-west1.firebasedatabase.app/")
+        val ledStateRef = database.getReference("led/state")
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                ledStateRef.setValue(if (turnOn) 1 else 0).addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        CoroutineScope(Dispatchers.Main).launch {
+                            Toast.makeText(
+                                requireContext(),
+                                "LED state updated to ${if (turnOn) "ON" else "OFF"}",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    } else {
+                        CoroutineScope(Dispatchers.Main).launch {
+                            Toast.makeText(
+                                requireContext(),
+                                "Failed to update LED state",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                CoroutineScope(Dispatchers.Main).launch {
+                    Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }

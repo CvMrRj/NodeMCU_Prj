@@ -76,7 +76,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupTabs() {
         val tabAdapter = TabAdapter(supportFragmentManager)
-        val isAdmin = loggedInEmail == "mertcevik1994@hotmail.com"
+        val isAdmin = loggedInEmail == "ckazanoglu@gmail.com"
 
         // HomeFragment ve SettingsFragment'a admin durumunu aktar
         tabAdapter.addFragment(HomeFragment(rooms, isAdmin), "Home")

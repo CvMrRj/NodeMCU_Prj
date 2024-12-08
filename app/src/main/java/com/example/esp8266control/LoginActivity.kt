@@ -22,7 +22,6 @@ class LoginActivity : AppCompatActivity() {
         val etEmail = findViewById<EditText>(R.id.etEmail)
         val etPassword = findViewById<EditText>(R.id.etPassword)
         val btnLogin = findViewById<Button>(R.id.btnLogin)
-        val btnRegister = findViewById<Button>(R.id.btnRegister)
 
         btnLogin.setOnClickListener {
             val email = etEmail.text.toString()
@@ -30,11 +29,7 @@ class LoginActivity : AppCompatActivity() {
             loginUser(email, password)
         }
 
-        btnRegister.setOnClickListener {
-            val email = etEmail.text.toString()
-            val password = etPassword.text.toString()
-            registerUser(email, password)
-        }
+
     }
 
     private fun loginUser(email: String, password: String) {

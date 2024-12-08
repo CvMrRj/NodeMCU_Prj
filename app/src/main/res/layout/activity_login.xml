@@ -12,7 +12,7 @@
         android:layout_height="wrap_content"
         android:hint="Email"
         android:inputType="textEmailAddress"
-        android:text="mertcevik1994@hotmail.com" />
+        android:text="ckazanoglu@gmail.com" />
 
     <EditText
         android:id="@+id/etPassword"
@@ -30,10 +30,4 @@
         android:text="LOGIN"
         android:layout_marginTop="16dp" />
 
-    <Button
-        android:id="@+id/btnRegister"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="REGISTER"
-        android:layout_marginTop="8dp" />
 </LinearLayout>

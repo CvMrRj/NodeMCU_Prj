@@ -50,6 +50,7 @@ dependencies {
     implementation("androidx.compose.material:material:1.5.3")
     implementation("androidx.compose.ui:ui-tooling-preview:1.5.3")
     implementation("androidx.activity:activity-compose:1.7.2")
+    implementation ("com.google.firebase:firebase-database:20.0.5")
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.material3.android)
     implementation("com.squareup.okhttp3:okhttp:4.11.0")
