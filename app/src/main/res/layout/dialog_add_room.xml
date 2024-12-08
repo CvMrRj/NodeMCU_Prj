@@ -1,0 +1,22 @@
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <EditText
+        android:id="@+id/etRoomName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Oda Adı"
+        android:inputType="text" />
+
+    <EditText
+        android:id="@+id/etRoomIp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="IP Adresi"
+        android:inputType="textUri"
+        android:layout_marginTop="8dp" />
+</LinearLayout>
