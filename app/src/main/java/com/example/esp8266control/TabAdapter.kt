@@ -4,10 +4,10 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.FragmentPagerAdapter
 
-class TabAdapter(fm: FragmentManager) : FragmentPagerAdapter(fm) {
+class TabAdapter(fm: FragmentManager) : FragmentPagerAdapter(fm, BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT) {
 
-    private val fragmentList = mutableListOf<Fragment>()
-    private val fragmentTitleList = mutableListOf<String>()
+    private val fragmentList = ArrayList<Fragment>()
+    private val fragmentTitleList = ArrayList<String>()
 
     fun addFragment(fragment: Fragment, title: String) {
         fragmentList.add(fragment)
@@ -20,5 +20,3 @@ class TabAdapter(fm: FragmentManager) : FragmentPagerAdapter(fm) {
 
     override fun getPageTitle(position: Int): CharSequence = fragmentTitleList[position]
 }
-
-

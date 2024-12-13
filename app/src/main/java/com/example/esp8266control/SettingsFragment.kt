@@ -8,8 +8,30 @@ import android.view.ViewGroup
 import android.widget.*
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
 
-class SettingsFragment(private val rooms: MutableList<Room>) : Fragment() {
+class SettingsFragment : Fragment() {
+
+    private val rooms = mutableListOf<Room>()
+    private lateinit var loggedInEmail: String
+
+    companion object {
+        fun newInstance(email: String): SettingsFragment {
+            val fragment = SettingsFragment()
+            val args = Bundle()
+            args.putString("email", email)
+            fragment.arguments = args
+            return fragment
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        loggedInEmail = arguments?.getString("email") ?: "default@example.com"
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -19,19 +41,39 @@ class SettingsFragment(private val rooms: MutableList<Room>) : Fragment() {
         val containerLayout = view.findViewById<LinearLayout>(R.id.settingsContainer)
         val addRoomButton = view.findViewById<Button>(R.id.btnAddRoom)
 
-        // Add Room butonunu tıklama işlemi
         addRoomButton.setOnClickListener {
             showAddRoomDialog(containerLayout)
         }
 
-        // Odaları listele
-        listRooms(containerLayout)
-
+        loadRoomsFromFirebase(containerLayout)
         return view
+    }
+
+    private fun loadRoomsFromFirebase(containerLayout: LinearLayout) {
+        val database = FirebaseDatabase.getInstance("https://esp8266-617c1-default-rtdb.europe-west1.firebasedatabase.app/")
+            .getReference("rooms")
+
+        database.addValueEventListener(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                rooms.clear()
+                for (roomSnapshot in snapshot.children) {
+                    val name = roomSnapshot.child("name").getValue(String::class.java) ?: ""
+                    val ip = roomSnapshot.child("ip").getValue(String::class.java) ?: ""
+                    val visible = roomSnapshot.child("visible").getValue(Boolean::class.java) ?: true
+                    rooms.add(Room(name, ip, visible))
+                }
+                listRooms(containerLayout)
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                Toast.makeText(requireContext(), "Veriler yüklenemedi: ${error.message}", Toast.LENGTH_SHORT).show()
+            }
+        })
     }
 
     private fun listRooms(containerLayout: LinearLayout) {
         containerLayout.removeAllViews()
+
         for (room in rooms) {
             val row = LinearLayout(requireContext()).apply {
                 orientation = LinearLayout.HORIZONTAL
@@ -47,51 +89,91 @@ class SettingsFragment(private val rooms: MutableList<Room>) : Fragment() {
             val toggleButton = Switch(requireContext()).apply {
                 isChecked = room.visible
                 setOnCheckedChangeListener { _, isChecked ->
-                    room.visible = isChecked
-
-                    // Home ekranını güncelle
-                    val homeFragment = (activity as MainActivity).supportFragmentManager.fragments
-                        .find { it is HomeFragment } as? HomeFragment
-                    homeFragment?.updateRooms()
+                    updateRoomVisibilityInFirebase(room, isChecked)
                 }
             }
 
             val editButton = Button(requireContext()).apply {
                 text = "Edit"
-                setBackgroundColor(resources.getColor(android.R.color.holo_blue_light))
                 setOnClickListener {
                     showEditRoomDialog(room, containerLayout)
                 }
             }
 
             row.addView(textView)
-            row.addView(editButton)
             row.addView(toggleButton)
+            row.addView(editButton)
             containerLayout.addView(row)
         }
+    }
+
+    private fun updateRoomVisibilityInFirebase(room: Room, isVisible: Boolean) {
+        val database = FirebaseDatabase.getInstance("https://esp8266-617c1-default-rtdb.europe-west1.firebasedatabase.app/")
+        val roomRef = database.getReference("rooms/${room.name}/visible")
+        roomRef.setValue(isVisible)
     }
 
     private fun showAddRoomDialog(containerLayout: LinearLayout) {
         val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_add_room, null)
         val etRoomName = dialogView.findViewById<EditText>(R.id.etRoomName)
-        val etRoomIp = dialogView.findViewById<EditText>(R.id.etRoomIp)
+        val etRoomOutput = dialogView.findViewById<EditText>(R.id.etRoomIp)
 
         val dialog = AlertDialog.Builder(requireContext())
             .setTitle("Yeni Oda Ekle")
             .setView(dialogView)
             .setPositiveButton("Kaydet") { _, _ ->
                 val roomName = etRoomName.text.toString()
-                val roomIp = etRoomIp.text.toString()
+                val espOutput = etRoomOutput.text.toString()
 
-                if (roomName.isNotEmpty() && roomIp.isNotEmpty()) {
-                    val newRoom = Room(roomName, roomIp)
-                    rooms.add(newRoom)
-                    listRooms(containerLayout) // Settings ekranını güncelle
+                if (roomName.isNotEmpty() && espOutput.isNotEmpty()) {
+                    val newRoom = Room(roomName, espOutput, true)
+                    addRoomToFirebase(newRoom)
+                } else {
+                    Toast.makeText(requireContext(), "Lütfen tüm alanları doldurun.", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("İptal") { dialog, _ -> dialog.dismiss() }
+            .create()
 
-                    // Home ekranını güncelle
-                    val homeFragment = (activity as MainActivity).supportFragmentManager.fragments
-                        .find { it is HomeFragment } as? HomeFragment
-                    homeFragment?.updateRooms()
+        dialog.show()
+    }
+
+    private fun addRoomToFirebase(room: Room) {
+        val database = FirebaseDatabase.getInstance("https://esp8266-617c1-default-rtdb.europe-west1.firebasedatabase.app/")
+        val roomRef = database.getReference("rooms/${room.name}")
+
+        roomRef.setValue(room).addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                Toast.makeText(requireContext(), "${room.name} başarıyla eklendi.", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(requireContext(), "Hata: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun showEditRoomDialog(room: Room, containerLayout: LinearLayout) {
+        val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_add_room, null)
+        val etRoomName = dialogView.findViewById<EditText>(R.id.etRoomName)
+        val etRoomOutput = dialogView.findViewById<EditText>(R.id.etRoomIp)
+
+        etRoomName.setText(room.name)
+        etRoomOutput.setText(room.ip)
+
+        val dialog = AlertDialog.Builder(requireContext())
+            .setTitle("Odayı Düzenle")
+            .setView(dialogView)
+            .setPositiveButton("Kaydet") { _, _ ->
+                val updatedName = etRoomName.text.toString()
+                val updatedIp = etRoomOutput.text.toString()
+
+                if (updatedName.isNotEmpty() && updatedIp.isNotEmpty()) {
+                    updateRoomInFirebase(room, updatedName, updatedIp)
+
+                    val index = rooms.indexOf(room)
+                    if (index != -1) {
+                        rooms[index] = room.copy(name = updatedName, ip = updatedIp)
+                    }
+                    listRooms(containerLayout)
                 } else {
                     Toast.makeText(requireContext(), "Lütfen tüm alanları doldurun.", Toast.LENGTH_SHORT).show()
                 }
@@ -104,33 +186,24 @@ class SettingsFragment(private val rooms: MutableList<Room>) : Fragment() {
         dialog.show()
     }
 
-    private fun showEditRoomDialog(room: Room, containerLayout: LinearLayout) {
-        val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_add_room, null)
-        val etRoomName = dialogView.findViewById<EditText>(R.id.etRoomName)
-        val etRoomIp = dialogView.findViewById<EditText>(R.id.etRoomIp)
+    private fun updateRoomInFirebase(room: Room, newName: String, newIp: String) {
+        val database = FirebaseDatabase.getInstance("https://esp8266-617c1-default-rtdb.europe-west1.firebasedatabase.app/")
+        val roomRef = database.getReference("rooms/${room.name}")
 
-        // Mevcut bilgileri doldur
-        etRoomName.setText(room.name)
-        etRoomIp.setText(room.ip)
-
-        val dialog = AlertDialog.Builder(requireContext())
-            .setTitle("Odayı Düzenle")
-            .setView(dialogView)
-            .setPositiveButton("Kaydet") { _, _ ->
-                room.name = etRoomName.text.toString()
-                room.ip = etRoomIp.text.toString()
-                listRooms(containerLayout) // Settings ekranını güncelle
-
-                // Home ekranını güncelle
-                val homeFragment = (activity as MainActivity).supportFragmentManager.fragments
-                    .find { it is HomeFragment } as? HomeFragment
-                homeFragment?.updateRooms()
+        roomRef.removeValue().addOnCompleteListener {
+            if (it.isSuccessful) {
+                val newRoomRef = database.getReference("rooms/$newName")
+                val updatedRoom = room.copy(name = newName, ip = newIp)
+                newRoomRef.setValue(updatedRoom).addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        Toast.makeText(requireContext(), "$newName başarıyla güncellendi.", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(requireContext(), "Hata: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } else {
+                Toast.makeText(requireContext(), "Oda güncellenemedi: ${it.exception?.message}", Toast.LENGTH_SHORT).show()
             }
-            .setNegativeButton("İptal") { dialog, _ ->
-                dialog.dismiss()
-            }
-            .create()
-
-        dialog.show()
+        }
     }
 }
