@@ -100,12 +100,53 @@ class SettingsFragment : Fragment() {
                 }
             }
 
+            val deleteButton = Button(requireContext()).apply {
+                text = "Delete"
+                setOnClickListener {
+                    showDeleteConfirmationDialog(room, containerLayout)
+                }
+            }
+
             row.addView(textView)
             row.addView(toggleButton)
             row.addView(editButton)
+            row.addView(deleteButton)
             containerLayout.addView(row)
         }
     }
+
+
+    private fun showDeleteConfirmationDialog(room: Room, containerLayout: LinearLayout) {
+        AlertDialog.Builder(requireContext())
+            .setTitle("Odayı Sil")
+            .setMessage("${room.name} adlı odayı silmek istediğinize emin misiniz?")
+            .setPositiveButton("Evet") { _, _ ->
+                deleteRoomFromFirebase(room, containerLayout)
+            }
+            .setNegativeButton("Hayır") { dialog, _ ->
+                dialog.dismiss()
+            }
+            .create()
+            .show()
+    }
+
+
+    private fun deleteRoomFromFirebase(room: Room, containerLayout: LinearLayout) {
+        val database = FirebaseDatabase.getInstance("https://esp8266-617c1-default-rtdb.europe-west1.firebasedatabase.app/")
+        val roomRef = database.getReference("rooms/${room.name}")
+
+        roomRef.removeValue().addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                rooms.remove(room)
+                listRooms(containerLayout)
+                Toast.makeText(requireContext(), "${room.name} başarıyla silindi.", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(requireContext(), "Silme işlemi başarısız: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+
 
     private fun updateRoomVisibilityInFirebase(room: Room, isVisible: Boolean) {
         val database = FirebaseDatabase.getInstance("https://esp8266-617c1-default-rtdb.europe-west1.firebasedatabase.app/")
@@ -142,14 +183,23 @@ class SettingsFragment : Fragment() {
         val database = FirebaseDatabase.getInstance("https://esp8266-617c1-default-rtdb.europe-west1.firebasedatabase.app/")
         val roomRef = database.getReference("rooms/${room.name}")
 
+        // Oda bilgilerini ekle ve state başlangıç değerini 0 yap
         roomRef.setValue(room).addOnCompleteListener { task ->
             if (task.isSuccessful) {
-                Toast.makeText(requireContext(), "${room.name} başarıyla eklendi.", Toast.LENGTH_SHORT).show()
+                // State alanını ekle
+                roomRef.child("state").setValue(0).addOnCompleteListener { stateTask ->
+                    if (stateTask.isSuccessful) {
+                        Toast.makeText(requireContext(), "${room.name} başarıyla eklendi ve state 0 olarak ayarlandı.", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(requireContext(), "State eklenirken hata: ${stateTask.exception?.message}", Toast.LENGTH_SHORT).show()
+                    }
+                }
             } else {
-                Toast.makeText(requireContext(), "Hata: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), "Oda eklenirken hata: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
             }
         }
     }
+
 
     private fun showEditRoomDialog(room: Room, containerLayout: LinearLayout) {
         val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_add_room, null)

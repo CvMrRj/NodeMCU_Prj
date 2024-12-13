@@ -1,6 +1,9 @@
 package com.example.esp8266control
 
 import Room
+import android.animation.ValueAnimator
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.LayerDrawable
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -8,6 +11,7 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.Toast
+import androidx.core.animation.doOnEnd
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.google.firebase.database.*
@@ -77,7 +81,6 @@ class HomeFragment : Fragment() {
         containerLayout?.removeAllViews()
 
         for (room in rooms) {
-            // Admin giriş yapmışsa tüm odalar gösterilir, değilse sadece "visible" olanlar
             if (loggedInEmail == "ckazanoglu@gmail.com" || room.visible) {
                 val row = LinearLayout(requireContext()).apply {
                     orientation = LinearLayout.HORIZONTAL
@@ -88,7 +91,8 @@ class HomeFragment : Fragment() {
                     text = room.name
 
                     // Gradient arka planı uygula
-                    setBackgroundResource(R.drawable.gradient_button)
+                    val background = ContextCompat.getDrawable(requireContext(), R.drawable.button_animation) as LayerDrawable
+                    background?.let { setBackground(it) }
 
                     // Yazı rengini siyah yap
                     setTextColor(ContextCompat.getColor(requireContext(), android.R.color.black))
@@ -96,16 +100,22 @@ class HomeFragment : Fragment() {
                     // Boyut ve stil ayarları
                     val layoutParams = LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT,
-                        150 // Buton yüksekliği (px cinsinden)
+                        150 // Buton yüksekliği
                     )
-                    layoutParams.setMargins(16, 16, 16, 16) // Kenar boşlukları
+                    layoutParams.setMargins(16, 16, 16, 16)
                     this.layoutParams = layoutParams
-                    textSize = 18f // Yazı boyutu
-                    setPadding(16, 16, 16, 16) // İçerik boşluğu
+                    textSize = 18f
+                    setPadding(16, 16, 16, 16)
+
+                    // Başlangıçta yeşil tabakayı tamamen şeffaf yap
+                    val greenOverlay = background.findDrawableByLayerId(R.id.greenOverlay) as GradientDrawable
+                    greenOverlay.alpha = 0
                 }
 
                 // Buton tıklama işlevi
                 button.setOnClickListener {
+                    startButtonAnimation(button)
+                    updateFirebaseState(room.name) // Firebase'deki state durumunu güncelle
                     Toast.makeText(requireContext(), "${room.name} butonuna tıklandı.", Toast.LENGTH_SHORT).show()
                 }
 
@@ -114,6 +124,53 @@ class HomeFragment : Fragment() {
             }
         }
     }
+
+
+    private fun updateFirebaseState(roomName: String) {
+        val database = FirebaseDatabase.getInstance("https://esp8266-617c1-default-rtdb.europe-west1.firebasedatabase.app/")
+        val stateRef = database.getReference("rooms/$roomName/state")
+
+        // State'i 1 yap
+        stateRef.setValue(1).addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                Toast.makeText(requireContext(), "State güncellendi: $roomName -> 1", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(requireContext(), "State güncellenemedi: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+
+
+
+
+    private fun startButtonAnimation(button: Button) {
+        val drawable = button.background as? LayerDrawable
+        val greenOverlay = drawable?.findDrawableByLayerId(R.id.greenOverlay) as? GradientDrawable
+
+        if (greenOverlay != null) {
+            // Animasyon oluştur
+            val animator = ValueAnimator.ofInt(0, 255).apply {
+                duration = 1000 // 1 saniye
+                addUpdateListener { animation ->
+                    val value = animation.animatedValue as Int
+                    greenOverlay.alpha = value // Şeffaflıktan opaklığa geçiş
+                    button.invalidate()
+                }
+                doOnEnd {
+                    // Animasyon tamamlandığında, yeşil geçiş tekrar şeffaf olur
+                    greenOverlay.alpha = 0
+                    button.invalidate()
+                }
+            }
+
+            // Animasyonu başlat
+            animator.start()
+        }
+    }
+
+
+
 
 
 
