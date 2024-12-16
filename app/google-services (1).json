@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "593827279388",
+    "project_id": "esp8266-617c1",
+    "storage_bucket": "esp8266-617c1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:593827279388:android:07919d0c142cb20137e5d9",
+        "android_client_info": {
+          "package_name": "com.example.esp8266control"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAQmPbdsBYiJ1Ok23_0C0uGPFhIUalJVJA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

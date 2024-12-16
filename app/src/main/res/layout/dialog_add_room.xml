@@ -16,6 +16,12 @@
         android:id="@+id/etRoomIp"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="ESP Çıkış (örn: d2)"
+        android:hint="ESP Çıkış"
         android:inputType="text" />
+
+    <Spinner
+        android:id="@+id/spinnerTimer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp" />
 </LinearLayout>

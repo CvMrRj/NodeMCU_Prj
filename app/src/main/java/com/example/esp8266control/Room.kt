@@ -4,7 +4,8 @@ import android.os.Parcelable
 data class Room(
     val name: String,
     val ip: String,
-    var visible: Boolean
+    var visible: Boolean,
+    val timer: Int? = null // Timer alanı
 ) : Parcelable {
     constructor(parcel: Parcel) : this(
         parcel.readString() ?: "",

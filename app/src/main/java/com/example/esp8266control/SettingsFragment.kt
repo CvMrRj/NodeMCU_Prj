@@ -100,8 +100,10 @@ class SettingsFragment : Fragment() {
                 }
             }
 
-            val deleteButton = Button(requireContext()).apply {
-                text = "Delete"
+            val deleteButton = ImageButton(requireContext()).apply {
+                layoutParams = LinearLayout.LayoutParams(90, 140) // Buton boyutunu küçült
+                setImageResource(R.drawable.ic_delete)
+                setBackgroundColor(resources.getColor(android.R.color.transparent))
                 setOnClickListener {
                     showDeleteConfirmationDialog(room, containerLayout)
                 }
@@ -158,6 +160,14 @@ class SettingsFragment : Fragment() {
         val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_add_room, null)
         val etRoomName = dialogView.findViewById<EditText>(R.id.etRoomName)
         val etRoomOutput = dialogView.findViewById<EditText>(R.id.etRoomIp)
+        val spinnerTimer = dialogView.findViewById<Spinner>(R.id.spinnerTimer)
+
+        // Spinner için seçenekleri oluştur
+        val timerOptions = mutableListOf("Yok")
+        timerOptions.addAll((1..20).map { "$it saniye" })
+        val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, timerOptions)
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        spinnerTimer.adapter = adapter
 
         val dialog = AlertDialog.Builder(requireContext())
             .setTitle("Yeni Oda Ekle")
@@ -165,9 +175,11 @@ class SettingsFragment : Fragment() {
             .setPositiveButton("Kaydet") { _, _ ->
                 val roomName = etRoomName.text.toString()
                 val espOutput = etRoomOutput.text.toString()
+                val selectedTimer = spinnerTimer.selectedItemPosition
 
                 if (roomName.isNotEmpty() && espOutput.isNotEmpty()) {
-                    val newRoom = Room(roomName, espOutput, true)
+                    val timerValue = if (selectedTimer == 0) null else selectedTimer // "Yok" için null
+                    val newRoom = Room(roomName, espOutput, true, timerValue)
                     addRoomToFirebase(newRoom)
                 } else {
                     Toast.makeText(requireContext(), "Lütfen tüm alanları doldurun.", Toast.LENGTH_SHORT).show()
@@ -179,14 +191,14 @@ class SettingsFragment : Fragment() {
         dialog.show()
     }
 
+
     private fun addRoomToFirebase(room: Room) {
         val database = FirebaseDatabase.getInstance("https://esp8266-617c1-default-rtdb.europe-west1.firebasedatabase.app/")
         val roomRef = database.getReference("rooms/${room.name}")
 
-        // Oda bilgilerini ekle ve state başlangıç değerini 0 yap
+        // Oda bilgilerini ekle
         roomRef.setValue(room).addOnCompleteListener { task ->
             if (task.isSuccessful) {
-                // State alanını ekle
                 roomRef.child("state").setValue(0).addOnCompleteListener { stateTask ->
                     if (stateTask.isSuccessful) {
                         Toast.makeText(requireContext(), "${room.name} başarıyla eklendi ve state 0 olarak ayarlandı.", Toast.LENGTH_SHORT).show()
@@ -201,11 +213,33 @@ class SettingsFragment : Fragment() {
     }
 
 
+
     private fun showEditRoomDialog(room: Room, containerLayout: LinearLayout) {
         val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_add_room, null)
         val etRoomName = dialogView.findViewById<EditText>(R.id.etRoomName)
         val etRoomOutput = dialogView.findViewById<EditText>(R.id.etRoomIp)
+        val spinnerTimer = dialogView.findViewById<Spinner>(R.id.spinnerTimer)
 
+        // Timer için Spinner seçeneklerini oluştur
+        val timerOptions = mutableListOf("Yok")
+        timerOptions.addAll((1..20).map { "$it saniye" })
+        val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, timerOptions)
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        spinnerTimer.adapter = adapter
+
+        // Firebase'den odanın mevcut timer değerini al
+        val database = FirebaseDatabase.getInstance("https://esp8266-617c1-default-rtdb.europe-west1.firebasedatabase.app/")
+        val roomRef = database.getReference("rooms/${room.name}/timer")
+
+        roomRef.get().addOnSuccessListener { snapshot ->
+            val timerValue = snapshot.getValue(Int::class.java)
+            val selectedTimerPosition = timerValue?.let { timerOptions.indexOf("$it saniye") } ?: 0
+            spinnerTimer.setSelection(selectedTimerPosition)
+        }.addOnFailureListener {
+            Toast.makeText(requireContext(), "Zamanlayıcı verisi alınamadı.", Toast.LENGTH_SHORT).show()
+        }
+
+        // Mevcut bilgileri doldur
         etRoomName.setText(room.name)
         etRoomOutput.setText(room.ip)
 
@@ -215,15 +249,20 @@ class SettingsFragment : Fragment() {
             .setPositiveButton("Kaydet") { _, _ ->
                 val updatedName = etRoomName.text.toString()
                 val updatedIp = etRoomOutput.text.toString()
+                val selectedTimer = spinnerTimer.selectedItemPosition
 
                 if (updatedName.isNotEmpty() && updatedIp.isNotEmpty()) {
-                    updateRoomInFirebase(room, updatedName, updatedIp)
+                    val timerValue = if (selectedTimer == 0) null else selectedTimer
 
+                    // Firebase güncellemesi
+                    updateRoomInFirebase(room, updatedName, updatedIp, timerValue)
+
+                    // Yerel listeyi güncelle
                     val index = rooms.indexOf(room)
                     if (index != -1) {
-                        rooms[index] = room.copy(name = updatedName, ip = updatedIp)
+                        rooms[index] = room.copy(name = updatedName, ip = updatedIp, timer = timerValue)
                     }
-                    listRooms(containerLayout)
+                    listRooms(containerLayout) // Listeyi güncelle
                 } else {
                     Toast.makeText(requireContext(), "Lütfen tüm alanları doldurun.", Toast.LENGTH_SHORT).show()
                 }
@@ -236,14 +275,17 @@ class SettingsFragment : Fragment() {
         dialog.show()
     }
 
-    private fun updateRoomInFirebase(room: Room, newName: String, newIp: String) {
+
+
+    private fun updateRoomInFirebase(room: Room, newName: String, newIp: String, newTimer: Int?) {
         val database = FirebaseDatabase.getInstance("https://esp8266-617c1-default-rtdb.europe-west1.firebasedatabase.app/")
         val roomRef = database.getReference("rooms/${room.name}")
 
+        // Eski oda kaydını sil
         roomRef.removeValue().addOnCompleteListener {
             if (it.isSuccessful) {
                 val newRoomRef = database.getReference("rooms/$newName")
-                val updatedRoom = room.copy(name = newName, ip = newIp)
+                val updatedRoom = room.copy(name = newName, ip = newIp, timer = newTimer)
                 newRoomRef.setValue(updatedRoom).addOnCompleteListener { task ->
                     if (task.isSuccessful) {
                         Toast.makeText(requireContext(), "$newName başarıyla güncellendi.", Toast.LENGTH_SHORT).show()
@@ -256,4 +298,5 @@ class SettingsFragment : Fragment() {
             }
         }
     }
+
 }
