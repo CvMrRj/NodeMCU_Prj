@@ -107,6 +107,7 @@ class HomeFragment : Fragment() {
                     textSize = 18f
                     setPadding(16, 16, 16, 16)
 
+
                     // Başlangıçta yeşil tabakayı tamamen şeffaf yap
                     val greenOverlay = background.findDrawableByLayerId(R.id.greenOverlay) as GradientDrawable
                     greenOverlay.alpha = 0
