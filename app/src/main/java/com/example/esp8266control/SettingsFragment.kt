@@ -7,6 +7,8 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.*
 import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.widget.SwitchCompat
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
@@ -86,7 +88,7 @@ class SettingsFragment : Fragment() {
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             }
 
-            val toggleButton = Switch(requireContext()).apply {
+            val toggleButton = SwitchCompat(requireContext()).apply {
                 isChecked = room.visible
                 setOnCheckedChangeListener { _, isChecked ->
                     updateRoomVisibilityInFirebase(room, isChecked)
@@ -94,27 +96,44 @@ class SettingsFragment : Fragment() {
             }
 
             val editButton = Button(requireContext()).apply {
-                text = "Edit"
+                text = "EDIT"
                 setOnClickListener {
                     showEditRoomDialog(room, containerLayout)
                 }
             }
 
             val deleteButton = ImageButton(requireContext()).apply {
-                layoutParams = LinearLayout.LayoutParams(90, 140) // Buton boyutunu küçült
+                layoutParams = LinearLayout.LayoutParams(100, 100) // Buton boyutunu belirle
                 setImageResource(R.drawable.ic_delete)
-                setBackgroundColor(resources.getColor(android.R.color.transparent))
+                scaleType = ImageView.ScaleType.FIT_CENTER // Resmi düzgün bir şekilde sığdır
+                adjustViewBounds = true // Görüntü oranlarını korur
                 setOnClickListener {
                     showDeleteConfirmationDialog(room, containerLayout)
                 }
             }
 
+            // Row'a öğeleri ekle
             row.addView(textView)
             row.addView(toggleButton)
             row.addView(editButton)
             row.addView(deleteButton)
+
+            // Row'u Container'a ekle
             containerLayout.addView(row)
+
+            // Her oda arasında bir çizgi ekle
+            val divider = View(requireContext()).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    2 // Çizginin yüksekliği (2dp)
+                ).apply {
+                    setMargins(8, 4, 8, 4) // Çizgi etrafındaki boşluk
+                }
+                setBackgroundColor(ContextCompat.getColor(requireContext(), android.R.color.darker_gray)) // Çizgi rengi
+            }
+            containerLayout.addView(divider)
         }
+
     }
 
 

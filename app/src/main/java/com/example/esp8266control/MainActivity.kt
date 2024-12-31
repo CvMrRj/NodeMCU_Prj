@@ -29,11 +29,11 @@ class MainActivity : AppCompatActivity() {
         val tabAdapter = TabAdapter(supportFragmentManager)
 
         // HomeFragment her zaman eklenir
-        tabAdapter.addFragment(HomeFragment.newInstance(loggedInEmail), "Home")
+        tabAdapter.addFragment(HomeFragment.newInstance(loggedInEmail), "HOME")
 
         // Sadece admin kullanıcı için SettingsFragment eklenir
         if (loggedInEmail == "ckazanoglu@gmail.com") {
-            tabAdapter.addFragment(SettingsFragment.newInstance(loggedInEmail), "Settings")
+            tabAdapter.addFragment(SettingsFragment.newInstance(loggedInEmail), "SETTINGS")
         }
 
         viewPager.adapter = tabAdapter
@@ -42,6 +42,11 @@ class MainActivity : AppCompatActivity() {
 
     // Kullanıcı çıkış yapma işlemi
     fun logout() {
+        // FragmentManager'daki fragment'leri temizle
+        supportFragmentManager.fragments.forEach { fragment ->
+            supportFragmentManager.beginTransaction().remove(fragment).commitAllowingStateLoss()
+        }
+
         // LoginActivity'yi başlat
         val intent = Intent(this, LoginActivity::class.java)
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
@@ -51,4 +56,9 @@ class MainActivity : AppCompatActivity() {
         finish()
     }
 
+    // Kullanıcı değişiminde tabları yeniden yükleme
+    fun reloadTabs(email: String) {
+        loggedInEmail = email
+        setupTabs()
+    }
 }
