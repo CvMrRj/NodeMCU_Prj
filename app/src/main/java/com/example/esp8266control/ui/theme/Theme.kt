@@ -34,8 +34,7 @@ private val LightColorScheme = lightColorScheme(
 
 @Composable
 fun ESP8266ControlTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
+    darkTheme: Boolean = true, // Her zaman koyu modu etkinleştir
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {

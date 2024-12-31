@@ -5,24 +5,39 @@
     android:layout_height="match_parent"
     android:padding="16dp">
 
+    <!-- Cem's House Başlık -->
+
     <!-- Yuvarlak Logo -->
 
-    <!-- Email EditText -->
-
-    <ImageView
-        android:id="@+id/logo"
-        android:layout_width="100dp"
-        android:layout_height="100dp"
-        android:layout_marginTop="104dp"
-        android:background="@drawable/circle_shape"
-        android:contentDescription="Logo"
-        android:scaleType="centerCrop"
-        android:src="@drawable/logo_mc"
+    <TextView
+        android:id="@+id/tvTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="48dp"
+        android:fontFamily="sans-serif-thin"
+        android:gravity="center"
+        android:text="CEM'S HOUSE"
+        android:textColor="@android:color/white"
+        android:textSize="24sp"
+        android:textStyle="bold"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.498"
+        app:layout_constraintHorizontal_bias="0.497"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
+    <ImageView
+        android:id="@+id/logo"
+        android:layout_width="127dp"
+        android:layout_height="128dp"
+        android:layout_marginTop="30dp"
+        android:contentDescription="@string/todo"
+        android:scaleType="centerCrop"
+        android:src="@drawable/logo_mc"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tvTitle" />
+
+    <!-- Email EditText -->
     <EditText
         android:id="@+id/etEmail"
         android:layout_width="0dp"
@@ -34,7 +49,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.5"
-        android:layout_marginTop="120dp" />
+        android:layout_marginTop="110dp" />
 
     <!-- Password Layout -->
     <com.google.android.material.textfield.TextInputLayout

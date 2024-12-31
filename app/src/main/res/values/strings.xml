@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Bizim Ev</string>
+    <string name="logo">Logo</string>
+    <string name="todo">TODO</string>
 </resources>

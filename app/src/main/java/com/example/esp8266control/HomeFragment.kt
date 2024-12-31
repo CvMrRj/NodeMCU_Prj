@@ -145,23 +145,37 @@ class HomeFragment : Fragment() {
     }
 
     private fun startButtonAnimation(button: Button) {
-        val drawable = button.background as? LayerDrawable
-        val greenOverlay = drawable?.findDrawableByLayerId(R.id.greenOverlay) as? GradientDrawable
-
-        if (greenOverlay != null) {
-            val animator = ValueAnimator.ofInt(0, 255).apply {
-                duration = 1000
-                addUpdateListener { animation ->
-                    val value = animation.animatedValue as Int
-                    greenOverlay.alpha = value
-                    button.invalidate()
-                }
-                doOnEnd {
-                    greenOverlay.alpha = 0
-                    button.invalidate()
-                }
-            }
-            animator.start()
+        val originalBackground = button.background
+        val greenBackground = GradientDrawable().apply {
+            setColor(ContextCompat.getColor(requireContext(), android.R.color.holo_green_light))
+            cornerRadius = 16f
         }
+
+        val animator = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = 1000 // 1 saniyede yeşile geçiş
+            addUpdateListener { animation ->
+                val fraction = animation.animatedValue as Float
+                val color = blendColors(
+                    ContextCompat.getColor(requireContext(), android.R.color.holo_green_light),
+                    ContextCompat.getColor(requireContext(), android.R.color.white),
+                    fraction
+                )
+                button.setBackgroundColor(color)
+            }
+            doOnEnd {
+                button.postDelayed({
+                    button.background = originalBackground
+                }, 3000) // 3 saniye sonra orijinal arka plana dön
+            }
+        }
+        animator.start()
     }
+
+    private fun blendColors(color1: Int, color2: Int, fraction: Float): Int {
+        val red = (1 - fraction) * (color1 shr 16 and 0xff) + fraction * (color2 shr 16 and 0xff)
+        val green = (1 - fraction) * (color1 shr 8 and 0xff) + fraction * (color2 shr 8 and 0xff)
+        val blue = (1 - fraction) * (color1 and 0xff) + fraction * (color2 and 0xff)
+        return (0xff shl 24) or ((red.toInt() and 0xff) shl 16) or ((green.toInt() and 0xff) shl 8) or (blue.toInt() and 0xff)
+    }
+
 }
