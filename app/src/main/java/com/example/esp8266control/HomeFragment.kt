@@ -3,7 +3,6 @@ package com.example.esp8266control
 import Room
 import android.animation.ValueAnimator
 import android.graphics.drawable.GradientDrawable
-import android.graphics.drawable.LayerDrawable
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -14,7 +13,6 @@ import android.widget.Toast
 import androidx.core.animation.doOnEnd
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.lifecycleScope
 import com.google.firebase.database.*
 import kotlinx.coroutines.launch
 
@@ -99,27 +97,7 @@ class HomeFragment : Fragment() {
                     setPadding(8, 8, 8, 8)
                 }
 
-                val button = Button(requireContext()).apply {
-                    text = room.name
-
-                    val background = ContextCompat.getDrawable(requireContext(), R.drawable.button_animation) as LayerDrawable
-                    background?.let { setBackground(it) }
-
-                    setTextColor(ContextCompat.getColor(requireContext(), android.R.color.black))
-
-                    val layoutParams = LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        150
-                    )
-                    layoutParams.setMargins(16, 16, 16, 16)
-                    this.layoutParams = layoutParams
-                    textSize = 18f
-                    setPadding(16, 16, 16, 16)
-
-                    val greenOverlay = background.findDrawableByLayerId(R.id.greenOverlay) as GradientDrawable
-                    greenOverlay.alpha = 0
-                }
-
+                val button = createButton(room)
                 button.setOnClickListener {
                     startButtonAnimation(button)
                     updateFirebaseState(room.name)
@@ -131,6 +109,46 @@ class HomeFragment : Fragment() {
             }
         }
     }
+
+    private fun createButton(room: Room): Button {
+        val button = Button(requireContext()).apply {
+            text = room.name
+            textSize = 18f
+            setPadding(16, 16, 16, 16)
+
+            val layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                150
+            ).apply {
+                setMargins(16, 16, 16, 16)
+            }
+            this.layoutParams = layoutParams
+
+            background = GradientDrawable().apply {
+                cornerRadius = 50f
+                setColor(ContextCompat.getColor(requireContext(), android.R.color.darker_gray)) // Varsayılan renk
+            }
+
+            setTextColor(ContextCompat.getColor(requireContext(), android.R.color.black)) // Metin rengi siyah
+        }
+
+        // Firebase'den gelen durumuna göre arka planı ayarla
+        val stateRef = database.child(room.name).child("state")
+        stateRef.get().addOnSuccessListener { snapshot ->
+            val state = snapshot.getValue(Int::class.java) ?: 0
+            val backgroundDrawable = button.background as GradientDrawable
+            backgroundDrawable.setColor(
+                if (state == 1) ContextCompat.getColor(requireContext(), android.R.color.holo_green_light)
+                else ContextCompat.getColor(requireContext(), android.R.color.darker_gray)
+            )
+            button.invalidate()
+        }.addOnFailureListener {
+            Toast.makeText(requireContext(), "Veri yüklenirken hata oluştu: ${it.message}", Toast.LENGTH_SHORT).show()
+        }
+
+        return button
+    }
+
 
     private fun updateFirebaseState(roomName: String) {
         val stateRef = database.child(roomName).child("state")
@@ -145,27 +163,19 @@ class HomeFragment : Fragment() {
     }
 
     private fun startButtonAnimation(button: Button) {
-        val originalBackground = button.background
-        val greenBackground = GradientDrawable().apply {
-            setColor(ContextCompat.getColor(requireContext(), android.R.color.holo_green_light))
-            cornerRadius = 16f
-        }
+        val buttonBackground = button.background as GradientDrawable
+        val originalColor = ContextCompat.getColor(requireContext(), android.R.color.darker_gray)
+        val greenColor = ContextCompat.getColor(requireContext(), android.R.color.holo_green_light)
 
         val animator = ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = 1000 // 1 saniyede yeşile geçiş
+            duration = 3000 // 3 saniye boyunca yeşil
             addUpdateListener { animation ->
                 val fraction = animation.animatedValue as Float
-                val color = blendColors(
-                    ContextCompat.getColor(requireContext(), android.R.color.holo_green_light),
-                    ContextCompat.getColor(requireContext(), android.R.color.white),
-                    fraction
-                )
-                button.setBackgroundColor(color)
+                val blendedColor = blendColors(greenColor, originalColor, fraction)
+                buttonBackground.setColor(blendedColor)
             }
             doOnEnd {
-                button.postDelayed({
-                    button.background = originalBackground
-                }, 3000) // 3 saniye sonra orijinal arka plana dön
+                buttonBackground.setColor(originalColor) // Eski rengi geri yükle
             }
         }
         animator.start()
@@ -177,5 +187,4 @@ class HomeFragment : Fragment() {
         val blue = (1 - fraction) * (color1 and 0xff) + fraction * (color2 and 0xff)
         return (0xff shl 24) or ((red.toInt() and 0xff) shl 16) or ((green.toInt() and 0xff) shl 8) or (blue.toInt() and 0xff)
     }
-
 }
