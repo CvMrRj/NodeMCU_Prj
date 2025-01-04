@@ -18,6 +18,7 @@ class SettingsFragment : Fragment() {
     private lateinit var loggedInEmail: String
     private lateinit var database: DatabaseReference
     private lateinit var valueEventListener: ValueEventListener
+    private var selectedPath: String = "rooms" // Varsayılan olarak "rooms" path'i
 
     companion object {
         fun newInstance(email: String): SettingsFragment {
@@ -41,24 +42,42 @@ class SettingsFragment : Fragment() {
         val view = inflater.inflate(R.layout.fragment_settings, container, false)
         val containerLayout = view.findViewById<LinearLayout>(R.id.settingsContainer)
         val addRoomButton = view.findViewById<Button>(R.id.btnAddRoom)
+        val deviceSpinner = view.findViewById<Spinner>(R.id.device_spinner)
 
         // Firebase referansı
         database = FirebaseDatabase.getInstance("https://esp8266-617c1-default-rtdb.europe-west1.firebasedatabase.app/")
-            .getReference("rooms")
+            .getReference()
+
+        // Cihaz path'lerini tanımla
+        val paths = listOf("rooms", "rooms2")
+        val spinnerAdapter = ArrayAdapter(
+            requireContext(),
+            android.R.layout.simple_spinner_item,
+            paths
+        )
+        spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        deviceSpinner.adapter = spinnerAdapter
+
+        // Spinner seçim olayları
+        deviceSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
+                selectedPath = paths[position]
+                setupFirebaseListener(containerLayout) // Seçilen path'e göre odaları yükle
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>) {}
+        }
 
         // Oda ekleme butonu
         addRoomButton.setOnClickListener {
             showAddRoomDialog(containerLayout)
         }
 
-        // Firebase'den odaları yükle
-        setupFirebaseListener(containerLayout)
-
         return view
     }
 
     private fun setupFirebaseListener(containerLayout: LinearLayout) {
-        valueEventListener = object : ValueEventListener {
+        database.child(selectedPath).addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 if (isAdded && context != null) {
                     rooms.clear()
@@ -77,8 +96,7 @@ class SettingsFragment : Fragment() {
                     Toast.makeText(requireContext(), "Veriler yüklenemedi: ${error.message}", Toast.LENGTH_SHORT).show()
                 }
             }
-        }
-        database.addValueEventListener(valueEventListener)
+        })
     }
 
     private fun listRooms(containerLayout: LinearLayout) {
@@ -146,9 +164,17 @@ class SettingsFragment : Fragment() {
     }
 
     private fun updateRoomVisibilityInFirebase(room: Room, isVisible: Boolean) {
-        val roomRef = database.child(room.name).child("visible")
-        roomRef.setValue(isVisible)
+        // Doğru path'i seçmek için selectedPath'i kullan
+        val roomRef = database.child(selectedPath).child(room.name).child("visible")
+        roomRef.setValue(isVisible).addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                Toast.makeText(requireContext(), "${room.name} görünürlüğü güncellendi.", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(requireContext(), "Görünürlük güncellenemedi: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
+
 
     private fun showAddRoomDialog(containerLayout: LinearLayout) {
         val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_add_room, null)
@@ -185,7 +211,7 @@ class SettingsFragment : Fragment() {
     }
 
     private fun addRoomToFirebase(room: Room) {
-        val roomRef = database.child(room.name)
+        val roomRef = database.child(selectedPath).child(room.name) // selectedPath burada kullanılıyor
         roomRef.setValue(room).addOnCompleteListener { task ->
             if (task.isSuccessful) {
                 roomRef.child("state").setValue(0).addOnCompleteListener { stateTask ->
@@ -200,6 +226,7 @@ class SettingsFragment : Fragment() {
             }
         }
     }
+
 
     private fun showEditRoomDialog(room: Room, containerLayout: LinearLayout) {
         val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_add_room, null)
@@ -278,10 +305,12 @@ class SettingsFragment : Fragment() {
     }
 
     private fun deleteRoomFromFirebase(room: Room, containerLayout: LinearLayout) {
-        database.child(room.name).removeValue().addOnCompleteListener { task ->
+        // Silme işleminde selectedPath kullanılarak doğru path'e erişilir
+        val roomRef = database.child(selectedPath).child(room.name)
+        roomRef.removeValue().addOnCompleteListener { task ->
             if (task.isSuccessful) {
-                rooms.remove(room)
-                listRooms(containerLayout)
+                rooms.remove(room) // Odayı listeden çıkar
+                listRooms(containerLayout) // Listeyi yeniden oluştur
                 Toast.makeText(requireContext(), "${room.name} başarıyla silindi.", Toast.LENGTH_SHORT).show()
             } else {
                 Toast.makeText(requireContext(), "Silme işlemi başarısız: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
