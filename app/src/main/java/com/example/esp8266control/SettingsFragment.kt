@@ -241,16 +241,20 @@ class SettingsFragment : Fragment() {
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         spinnerTimer.adapter = adapter
 
-        // Mevcut oda bilgilerini doldur
-        etRoomName.setText(room.name)
-        etRoomOutput.setText(room.ip)
+        // Firebase'den mevcut oda bilgilerini getir
+        val roomRef = database.child(selectedPath).child(room.name)
+        roomRef.get().addOnSuccessListener { snapshot ->
+            if (snapshot.exists()) {
+                val ip = snapshot.child("ip").getValue(String::class.java) ?: room.ip
+                val timerValue = snapshot.child("timer").getValue(Int::class.java)
+                val selectedTimerPosition = timerValue?.let { timerOptions.indexOf("$it saniye") } ?: 0
 
-        // Timer bilgisi al ve Spinner'ı güncelle
-        val timerRef = database.child(room.name).child("timer")
-        timerRef.get().addOnSuccessListener { snapshot ->
-            val timerValue = snapshot.getValue(Int::class.java)
-            val selectedPosition = timerValue?.let { timerOptions.indexOf("$it saniye") } ?: 0
-            spinnerTimer.setSelection(selectedPosition)
+                etRoomName.setText(room.name)
+                etRoomOutput.setText(ip)
+                spinnerTimer.setSelection(selectedTimerPosition)
+            }
+        }.addOnFailureListener {
+            Toast.makeText(requireContext(), "Oda bilgileri yüklenemedi: ${it.message}", Toast.LENGTH_SHORT).show()
         }
 
         AlertDialog.Builder(requireContext())
@@ -273,24 +277,28 @@ class SettingsFragment : Fragment() {
             .show()
     }
 
+
     private fun updateRoomInFirebase(room: Room, newName: String, newIp: String, newTimer: Int?) {
-        val roomRef = database.child(room.name)
-        roomRef.removeValue().addOnCompleteListener {
-            if (it.isSuccessful) {
-                val newRoomRef = database.child(newName)
+        // Eski path'i doğru bir şekilde silmek için selectedPath kullanılıyor
+        val oldRoomRef = database.child(selectedPath).child(room.name)
+        oldRoomRef.removeValue().addOnCompleteListener { removeTask ->
+            if (removeTask.isSuccessful) {
+                // Yeni path'e güncel verileri eklemek için selectedPath kullanılıyor
+                val newRoomRef = database.child(selectedPath).child(newName)
                 val updatedRoom = room.copy(name = newName, ip = newIp, timer = newTimer)
-                newRoomRef.setValue(updatedRoom).addOnCompleteListener { task ->
-                    if (task.isSuccessful) {
+                newRoomRef.setValue(updatedRoom).addOnCompleteListener { setTask ->
+                    if (setTask.isSuccessful) {
                         Toast.makeText(requireContext(), "$newName başarıyla güncellendi.", Toast.LENGTH_SHORT).show()
                     } else {
-                        Toast.makeText(requireContext(), "Güncelleme sırasında hata oluştu: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(requireContext(), "Güncelleme sırasında hata oluştu: ${setTask.exception?.message}", Toast.LENGTH_SHORT).show()
                     }
                 }
             } else {
-                Toast.makeText(requireContext(), "Oda güncellenemedi: ${it.exception?.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), "Eski oda silinemedi: ${removeTask.exception?.message}", Toast.LENGTH_SHORT).show()
             }
         }
     }
+
 
     private fun showDeleteConfirmationDialog(room: Room, containerLayout: LinearLayout) {
         AlertDialog.Builder(requireContext())
