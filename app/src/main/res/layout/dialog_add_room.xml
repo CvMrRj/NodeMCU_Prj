@@ -5,6 +5,7 @@
     android:orientation="vertical"
     android:padding="16dp">
 
+    <!-- Oda Adı -->
     <EditText
         android:id="@+id/etRoomName"
         android:layout_width="match_parent"
@@ -12,19 +13,22 @@
         android:hint="Oda Adı"
         android:inputType="text" />
 
-    <EditText
-        android:id="@+id/etRoomIp"
+    <!-- ESP Çıkış Seçimi için Spinner -->
+    <Spinner
+        android:id="@+id/spinnerOutput"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="ESP Çıkış"
-        android:inputType="text" />
+        android:layout_marginTop="16dp"
+        android:hint="ESP Çıkışı Seçin" />
 
+    <!-- Timer Seçimi -->
     <Spinner
         android:id="@+id/spinnerTimer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp" />
 
+    <!-- Role Seçimi -->
     <Spinner
         android:id="@+id/spinnerRole"
         android:layout_width="match_parent"
