@@ -178,38 +178,34 @@ class SettingsFragment : Fragment() {
     private fun showAddRoomDialog() {
         val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_add_room, null)
         val etRoomName = dialogView.findViewById<EditText>(R.id.etRoomName)
-        val spinnerOutput = dialogView.findViewById<Spinner>(R.id.spinnerOutput) // ESP çıkışı için Spinner
+        val spinnerRoomIp = dialogView.findViewById<Spinner>(R.id.spinnerRoomIp)
         val spinnerTimer = dialogView.findViewById<Spinner>(R.id.spinnerTimer)
-        val spinnerRole = dialogView.findViewById<Spinner>(R.id.spinnerRole)
+        val checkboxRole = dialogView.findViewById<CheckBox>(R.id.checkboxRole)
 
-        // ESP çıkışı seçenekleri
-        val outputOptions = listOf("D0", "D1", "D2", "D3", "D4", "D5", "D6", "D7", "D8")
-        val outputAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, outputOptions)
-        outputAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        spinnerOutput.adapter = outputAdapter
+        // ESP Çıkışı için Spinner seçenekleri
+        val espOptions = (0..8).map { "D$it" }
+        val espAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, espOptions)
+        espAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        spinnerRoomIp.adapter = espAdapter
 
-        // Timer için seçenekler
-        val timerOptions = listOf("Timer") + (1..20).map { "$it saniye" }
+        // Timer için Spinner seçenekleri
+        val timerOptions = mutableListOf("Yok")
+        timerOptions.addAll((1..20).map { "$it saniye" })
         val timerAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, timerOptions)
         timerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         spinnerTimer.adapter = timerAdapter
-
-        // Role için seçenekler
-        val roleOptions = listOf("Normal", "Reverse")
-        val roleAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, roleOptions)
-        roleAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        spinnerRole.adapter = roleAdapter
 
         AlertDialog.Builder(requireContext())
             .setTitle("Yeni Oda Ekle")
             .setView(dialogView)
             .setPositiveButton("Kaydet") { _, _ ->
                 val roomName = etRoomName.text.toString()
-                val espOutput = spinnerOutput.selectedItem.toString()
-                val timerValue = if (spinnerTimer.selectedItemPosition == 0) null else spinnerTimer.selectedItemPosition
-                val roleValue = if (spinnerRole.selectedItem.toString() == "Reverse") "reverse" else null
+                val espOutput = spinnerRoomIp.selectedItem.toString()
+                val selectedTimer = spinnerTimer.selectedItemPosition
+                val timerValue = if (selectedTimer == 0) null else selectedTimer
+                val roleValue = if (checkboxRole.isChecked) "reverse" else null
 
-                if (roomName.isNotEmpty()) {
+                if (roomName.isNotEmpty() && espOutput.isNotEmpty()) {
                     val newRoom = Room(roomName, espOutput, true, timerValue, roleValue,selectedPath)
                     addRoomToFirebase(newRoom)
                 } else {
@@ -220,6 +216,8 @@ class SettingsFragment : Fragment() {
             .create()
             .show()
     }
+
+
 
 
 
@@ -245,45 +243,43 @@ class SettingsFragment : Fragment() {
     private fun showEditRoomDialog(room: Room) {
         val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_add_room, null)
         val etRoomName = dialogView.findViewById<EditText>(R.id.etRoomName)
-        val spinnerOutput = dialogView.findViewById<Spinner>(R.id.spinnerOutput) // ESP çıkışı için Spinner
+        val spinnerRoomIp = dialogView.findViewById<Spinner>(R.id.spinnerRoomIp)
         val spinnerTimer = dialogView.findViewById<Spinner>(R.id.spinnerTimer)
-        val spinnerRole = dialogView.findViewById<Spinner>(R.id.spinnerRole)
+        val checkboxRole = dialogView.findViewById<CheckBox>(R.id.checkboxRole)
 
-        // ESP çıkışı seçenekleri
-        val outputOptions = listOf("D0", "D1", "D2", "D3", "D4", "D5", "D6", "D7", "D8")
-        val outputAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, outputOptions)
-        outputAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        spinnerOutput.adapter = outputAdapter
+        // ESP Çıkışı için Spinner seçenekleri
+        val espOptions = (0..8).map { "D$it" }
+        val espAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, espOptions)
+        espAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        spinnerRoomIp.adapter = espAdapter
 
-        // Timer için seçenekler
-        val timerOptions = listOf("Timer None") + (1..20).map { "$it saniye" }
+        // Timer için Spinner seçenekleri
+        val timerOptions = mutableListOf("Yok")
+        timerOptions.addAll((1..20).map { "$it saniye" })
         val timerAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, timerOptions)
         timerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         spinnerTimer.adapter = timerAdapter
 
-        // Role için seçenekler
-        val roleOptions = listOf("Normal", "Röle")
-        val roleAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, roleOptions)
-        roleAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        spinnerRole.adapter = roleAdapter
-
-        // Mevcut oda bilgilerini doldur
+        // Mevcut değerleri set et
         etRoomName.setText(room.name)
-        spinnerOutput.setSelection(outputOptions.indexOf(room.ip))
-        spinnerTimer.setSelection(room.timer ?: 0)
-        spinnerRole.setSelection(if (room.role == "reverse") 1 else 0)
+        val espIndex = espOptions.indexOf(room.ip)
+        spinnerRoomIp.setSelection(espIndex)
+        val timerIndex = room.timer?.let { timerOptions.indexOf("$it saniye") } ?: 0
+        spinnerTimer.setSelection(timerIndex)
+        checkboxRole.isChecked = room.role == "reverse"
 
         AlertDialog.Builder(requireContext())
             .setTitle("Odayı Düzenle")
             .setView(dialogView)
             .setPositiveButton("Kaydet") { _, _ ->
                 val updatedName = etRoomName.text.toString()
-                val updatedOutput = spinnerOutput.selectedItem.toString()
-                val timerValue = if (spinnerTimer.selectedItemPosition == 0) null else spinnerTimer.selectedItemPosition
-                val roleValue = if (spinnerRole.selectedItem.toString() == "Reverse") "reverse" else null
+                val updatedIp = spinnerRoomIp.selectedItem.toString()
+                val selectedTimer = spinnerTimer.selectedItemPosition
+                val timerValue = if (selectedTimer == 0) null else selectedTimer
+                val roleValue = if (checkboxRole.isChecked) "reverse" else null
 
-                if (updatedName.isNotEmpty()) {
-                    updateRoomInFirebase(room, updatedName, updatedOutput, timerValue, roleValue)
+                if (updatedName.isNotEmpty() && updatedIp.isNotEmpty()) {
+                    updateRoomInFirebase(room, updatedName, updatedIp, timerValue, roleValue)
                 } else {
                     Toast.makeText(requireContext(), "Lütfen tüm alanları doldurun.", Toast.LENGTH_SHORT).show()
                 }
@@ -292,6 +288,7 @@ class SettingsFragment : Fragment() {
             .create()
             .show()
     }
+
 
 
 

@@ -6,6 +6,12 @@
     android:padding="16dp">
 
     <!-- Oda Adı -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Oda Adı"
+        android:textStyle="bold" />
+
     <EditText
         android:id="@+id/etRoomName"
         android:layout_width="match_parent"
@@ -13,28 +19,44 @@
         android:hint="Oda Adı"
         android:inputType="text" />
 
-    <!-- ESP Çıkış Seçimi için Spinner -->
-    <Spinner
-        android:id="@+id/spinnerOutput"
+    <!-- ESP Çıkışı -->
+    <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:hint="ESP Çıkışı Seçin" />
+        android:layout_marginTop="8dp"
+        android:text="ESP Çıkışı"
+        android:textStyle="bold" />
 
-    <!-- Timer Seçimi -->
+    <Spinner
+        android:id="@+id/spinnerRoomIp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
+    <!-- Timer -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Timer (Saniye)"
+        android:textStyle="bold" />
+
     <Spinner
         android:id="@+id/spinnerTimer"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp" />
+        android:layout_height="wrap_content" />
 
-    <!-- Role Seçimi -->
-    <Spinner
-        android:id="@+id/spinnerRole"
+    <!-- Reverse (Role) -->
+    <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:layout_marginBottom="16dp"
-        android:entries="@array/role_options" />
+        android:layout_marginTop="8dp"
+        android:text="Reverse"
+        android:textStyle="bold" />
+
+    <CheckBox
+        android:id="@+id/checkboxRole"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Evet, bu oda Reverse (Ters Çalışma) için ayarlandı" />
 
 </LinearLayout>
