@@ -130,20 +130,9 @@ class HomeFragment : Fragment() {
         }
     }
 
-    private fun createButton(room: Room): Button {
-        val button = Button(requireContext()).apply {
-            text = room.name
-            textSize = 18f
-
-            setTextColor(
-                ContextCompat.getColor(
-                    requireContext(),
-                    if (room.role == "reverse") android.R.color.holo_red_dark else android.R.color.black
-                )
-            )
-
-            setPadding(16, 16, 16, 16)
-
+    private fun createButton(room: Room): RelativeLayout {
+        // Dış layout (butonun tamamı)
+        val container = RelativeLayout(requireContext()).apply {
             val layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 150
@@ -151,38 +140,85 @@ class HomeFragment : Fragment() {
                 setMargins(16, 16, 16, 16)
             }
             this.layoutParams = layoutParams
-
             background = GradientDrawable().apply {
                 cornerRadius = 50f
                 setColor(ContextCompat.getColor(requireContext(), android.R.color.darker_gray))
             }
         }
 
-        // Firebase'den gelen durumuna göre arka planı ayarla
+        // Oda adı text
+        val textView = TextView(requireContext()).apply {
+            id = View.generateViewId()
+            text = room.name
+            textSize = 18f
+            setTextColor(
+                if (room.role == "reverse") ContextCompat.getColor(requireContext(), android.R.color.holo_red_light)
+                else ContextCompat.getColor(requireContext(), android.R.color.black)
+            )
+            val textParams = RelativeLayout.LayoutParams(
+                RelativeLayout.LayoutParams.WRAP_CONTENT,
+                RelativeLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                addRule(RelativeLayout.CENTER_VERTICAL)
+                addRule(RelativeLayout.ALIGN_PARENT_START)
+                marginStart = 24
+            }
+            layoutParams = textParams
+        }
+
+        // Reverse simgesi (Eğer Reverse ise)
+        val reverseIcon = ImageView(requireContext()).apply {
+            if (room.role == "reverse") {
+                setImageResource(R.drawable.relay_home) // Reverse simgenizin drawable adı
+                val iconParams = RelativeLayout.LayoutParams(
+                    80,
+                    80
+                ).apply {
+                    addRule(RelativeLayout.CENTER_VERTICAL)
+                    addRule(RelativeLayout.ALIGN_PARENT_END)
+                    marginEnd = 24
+                }
+                layoutParams = iconParams
+            } else {
+                visibility = View.GONE
+            }
+        }
+
+        // Reverse simgesini ve oda adını layout'a ekle
+        container.addView(textView)
+        if (room.role == "reverse") container.addView(reverseIcon)
+
+        // Buton tıklama olayları
+        container.setOnClickListener {
+            startButtonAnimation(container)
+            updateFirebaseState(room)
+            Toast.makeText(requireContext(), "${room.name} butonuna tıklandı.", Toast.LENGTH_SHORT).show()
+        }
+
+        // Durumuna göre arka plan rengi ayarla
         val stateRef = database.child(room.path).child(room.name).child("state")
         stateRef.get().addOnSuccessListener { snapshot ->
             val state = snapshot.getValue(Int::class.java) ?: 0
-            val backgroundDrawable = button.background as GradientDrawable
-            if (room.role == "reverse") {
-                // Reverse ise renkler ters şekilde ayarlanır
-                backgroundDrawable.setColor(
-                    if (state == 1) ContextCompat.getColor(requireContext(), android.R.color.darker_gray)
-                    else ContextCompat.getColor(requireContext(), android.R.color.holo_green_light)
-                )
-            } else {
-                // Normal durumda
-                backgroundDrawable.setColor(
-                    if (state == 1) ContextCompat.getColor(requireContext(), android.R.color.holo_green_light)
-                    else ContextCompat.getColor(requireContext(), android.R.color.darker_gray)
-                )
-            }
-            button.invalidate()
+            val backgroundDrawable = container.background as GradientDrawable
+            backgroundDrawable.setColor(
+                if (state == 1) {
+                    if (room.role == "reverse") {
+                        ContextCompat.getColor(requireContext(), android.R.color.holo_red_dark)
+                    } else {
+                        ContextCompat.getColor(requireContext(), android.R.color.holo_green_light)
+                    }
+                } else {
+                    ContextCompat.getColor(requireContext(), android.R.color.darker_gray)
+                }
+            )
+            container.invalidate()
         }.addOnFailureListener {
             Toast.makeText(requireContext(), "Veri yüklenirken hata oluştu: ${it.message}", Toast.LENGTH_SHORT).show()
         }
 
-        return button
+        return container
     }
+
 
 
 
@@ -219,24 +255,25 @@ class HomeFragment : Fragment() {
         }
     }
 
-    private fun startButtonAnimation(button: Button) {
-        val buttonBackground = button.background as GradientDrawable
+    private fun startButtonAnimation(view: View) {
+        val buttonBackground = view.background as GradientDrawable
         val originalColor = ContextCompat.getColor(requireContext(), android.R.color.darker_gray)
-        val greenColor = ContextCompat.getColor(requireContext(), android.R.color.holo_green_light)
+        val activeColor = ContextCompat.getColor(requireContext(), android.R.color.holo_green_light)
 
         val animator = ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = 3000
+            duration = 3000 // 3 saniyelik bir animasyon
             addUpdateListener { animation ->
                 val fraction = animation.animatedValue as Float
-                val blendedColor = blendColors(greenColor, originalColor, fraction)
+                val blendedColor = blendColors(activeColor, originalColor, fraction)
                 buttonBackground.setColor(blendedColor)
             }
             doOnEnd {
-                buttonBackground.setColor(originalColor)
+                buttonBackground.setColor(originalColor) // Animasyon bittikten sonra eski rengi uygular
             }
         }
         animator.start()
     }
+
 
     private fun blendColors(color1: Int, color2: Int, fraction: Float): Int {
         val red = (1 - fraction) * (color1 shr 16 and 0xff) + fraction * (color2 shr 16 and 0xff)
@@ -244,4 +281,5 @@ class HomeFragment : Fragment() {
         val blue = (1 - fraction) * (color1 and 0xff) + fraction * (color2 and 0xff)
         return (0xff shl 24) or ((red.toInt() and 0xff) shl 16) or ((green.toInt() and 0xff) shl 8) or (blue.toInt() and 0xff)
     }
+
 }
