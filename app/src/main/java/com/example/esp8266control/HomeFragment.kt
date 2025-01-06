@@ -4,6 +4,9 @@ import Room
 import android.animation.ValueAnimator
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -83,7 +86,15 @@ class HomeFragment : Fragment() {
                         val name = roomSnapshot.child("name").getValue(String::class.java) ?: ""
                         val ip = roomSnapshot.child("ip").getValue(String::class.java) ?: ""
                         val visible = roomSnapshot.child("visible").getValue(Boolean::class.java) ?: true
-                        rooms.add(Room(name, ip, visible))
+                        val timer = roomSnapshot.child("timer").getValue(Int::class.java) // Timer varsa al, yoksa null
+                        val role = roomSnapshot.child("role").getValue(String::class.java) // Role varsa al, yoksa null
+
+                        // Room nesnesi oluştur
+                        val room = Room(name, ip, visible, timer, role)
+                        rooms.add(room)
+
+                        // Loglama ile kontrol edebilirsiniz
+                        Log.d("FirebaseRoomData", "Room: $name, Timer: $timer, Role: $role, Visible: $visible")
                     }
                     if (isAdded && context != null) {
                         displayRooms()
@@ -104,6 +115,7 @@ class HomeFragment : Fragment() {
         // Yeni dinleyiciyi ekle
         database.child(selectedPath).addValueEventListener(valueEventListener)
     }
+
 
     override fun onDestroyView() {
         super.onDestroyView()
@@ -126,7 +138,7 @@ class HomeFragment : Fragment() {
             val button = createButton(room)
             button.setOnClickListener {
                 startButtonAnimation(button)
-                updateFirebaseState(room.name)
+                updateFirebaseState(room)
                 Toast.makeText(requireContext(), "${room.name} butonuna tıklandı.", Toast.LENGTH_SHORT).show()
             }
 
@@ -177,21 +189,41 @@ class HomeFragment : Fragment() {
         return button
     }
 
-    private fun updateFirebaseState(roomName: String) {
-        val stateRef = database.child(selectedPath).child(roomName).child("state")
+    private fun updateFirebaseState(room: Room) {
+        val stateRef = database.child(selectedPath).child(room.name).child("state")
+        val timerRef = room.timer ?: 0
+        val role = room.role
+
         stateRef.get().addOnSuccessListener { snapshot ->
             val currentState = snapshot.getValue(Int::class.java) ?: 0
-            val newState = if (currentState == 0) 1 else 0
+            val newState = if (role == "reverse") {
+                if (currentState == 1) 0 else 1
+            } else {
+                if (currentState == 0) 1 else 0
+            }
 
             stateRef.setValue(newState).addOnCompleteListener { task ->
                 if (task.isSuccessful) {
-                    Toast.makeText(requireContext(), "State güncellendi: $roomName -> $newState", Toast.LENGTH_SHORT).show()
+                    if (newState == 1 && timerRef > 0) {
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            stateRef.setValue(0).addOnSuccessListener {
+                                Log.d("TimerReset", "Timer tamamlandı: ${room.name}, state sıfırlandı.")
+                            }.addOnFailureListener {
+                                Log.e("TimerReset", "Timer sıfırlama başarısız: ${it.message}")
+                            }
+                        }, timerRef * 1000L)
+                    }
+
+                    Toast.makeText(requireContext(), "${room.name} state güncellendi: $newState", Toast.LENGTH_SHORT).show()
                 } else {
                     Toast.makeText(requireContext(), "State güncellenemedi: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
                 }
             }
         }
     }
+
+
+
 
     private fun startButtonAnimation(button: Button) {
         val buttonBackground = button.background as GradientDrawable

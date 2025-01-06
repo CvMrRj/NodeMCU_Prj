@@ -181,13 +181,20 @@ class SettingsFragment : Fragment() {
         val etRoomName = dialogView.findViewById<EditText>(R.id.etRoomName)
         val etRoomOutput = dialogView.findViewById<EditText>(R.id.etRoomIp)
         val spinnerTimer = dialogView.findViewById<Spinner>(R.id.spinnerTimer)
+        val roleSpinner = dialogView.findViewById<Spinner>(R.id.spinnerRole) // Yeni spinner
 
-        // Timer için Spinner seçeneklerini oluştur
+        // Timer için Spinner seçenekleri
         val timerOptions = mutableListOf("Yok")
         timerOptions.addAll((1..20).map { "$it saniye" })
-        val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, timerOptions)
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        spinnerTimer.adapter = adapter
+        val timerAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, timerOptions)
+        timerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        spinnerTimer.adapter = timerAdapter
+
+        // Role için Spinner seçenekleri
+        val roleOptions = listOf("Normal", "Reverse")
+        val roleAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, roleOptions)
+        roleAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        roleSpinner.adapter = roleAdapter
 
         AlertDialog.Builder(requireContext())
             .setTitle("Yeni Oda Ekle")
@@ -196,10 +203,12 @@ class SettingsFragment : Fragment() {
                 val roomName = etRoomName.text.toString()
                 val espOutput = etRoomOutput.text.toString()
                 val selectedTimer = spinnerTimer.selectedItemPosition
+                val selectedRole = roleSpinner.selectedItem.toString()
 
                 if (roomName.isNotEmpty() && espOutput.isNotEmpty()) {
                     val timerValue = if (selectedTimer == 0) null else selectedTimer
-                    val newRoom = Room(roomName, espOutput, true, timerValue)
+                    val roleValue = if (selectedRole == "Reverse") "reverse" else null
+                    val newRoom = Room(roomName, espOutput, true, timerValue, roleValue)
                     addRoomToFirebase(newRoom)
                 } else {
                     Toast.makeText(requireContext(), "Lütfen tüm alanları doldurun.", Toast.LENGTH_SHORT).show()
@@ -210,8 +219,9 @@ class SettingsFragment : Fragment() {
             .show()
     }
 
+
     private fun addRoomToFirebase(room: Room) {
-        val roomRef = database.child(selectedPath).child(room.name) // selectedPath burada kullanılıyor
+        val roomRef = database.child(selectedPath).child(room.name)
         roomRef.setValue(room).addOnCompleteListener { task ->
             if (task.isSuccessful) {
                 roomRef.child("state").setValue(0).addOnCompleteListener { stateTask ->
