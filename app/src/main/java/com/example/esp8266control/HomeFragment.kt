@@ -120,7 +120,6 @@ class HomeFragment : Fragment() {
                     button.setOnClickListener {
                         startButtonAnimation(button)
                         updateFirebaseState(room)
-                        Toast.makeText(requireContext(), "${room.name} butonuna tıklandı.", Toast.LENGTH_SHORT).show()
                     }
 
                     row.addView(button)
@@ -192,7 +191,6 @@ class HomeFragment : Fragment() {
         container.setOnClickListener {
             startButtonAnimation(container)
             updateFirebaseState(room)
-            Toast.makeText(requireContext(), "${room.name} butonuna tıklandı.", Toast.LENGTH_SHORT).show()
         }
 
         // Durumuna göre arka plan rengi ayarla
@@ -247,7 +245,6 @@ class HomeFragment : Fragment() {
                         }, timerRef * 1000L)
                     }
 
-                    Toast.makeText(requireContext(), "${room.name} state güncellendi: $newState", Toast.LENGTH_SHORT).show()
                 } else {
                     Toast.makeText(requireContext(), "State güncellenemedi: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
                 }
