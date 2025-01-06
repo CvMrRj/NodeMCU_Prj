@@ -23,7 +23,6 @@ class HomeFragment : Fragment() {
     private lateinit var database: DatabaseReference
     private lateinit var valueEventListener: ValueEventListener
     private lateinit var loggedInEmail: String
-    private var selectedPath: String = "rooms" // Varsayılan olarak "rooms" path'i
 
     companion object {
         fun newInstance(email: String): HomeFragment {
@@ -43,7 +42,6 @@ class HomeFragment : Fragment() {
         containerLayout = view.findViewById(R.id.roomContainer)
         loggedInEmail = arguments?.getString("email") ?: "default@example.com"
         val logoutButton = view.findViewById<Button>(R.id.btnLogout)
-        val deviceSpinner = view.findViewById<Spinner>(R.id.device_spinner) // Spinner ekliyoruz
 
         logoutButton.setOnClickListener {
             (activity as MainActivity).logout()
@@ -53,107 +51,97 @@ class HomeFragment : Fragment() {
         database = FirebaseDatabase.getInstance("https://esp8266-617c1-default-rtdb.europe-west1.firebasedatabase.app/")
             .reference
 
-        // Spinner için path listesi
-        val paths = listOf("rooms", "rooms2")
-        val spinnerAdapter = ArrayAdapter(
-            requireContext(),
-            android.R.layout.simple_spinner_item,
-            paths
-        )
-        spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        deviceSpinner.adapter = spinnerAdapter
-
-        // Spinner seçim olayları
-        deviceSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
-                selectedPath = paths[position] // Seçilen path'i güncelle
-                setupFirebaseListener()       // Yeni path'e göre odaları yükle
-            }
-
-            override fun onNothingSelected(parent: AdapterView<*>) {}
-        }
+        setupFirebaseListener()
 
         return view
     }
 
     private fun setupFirebaseListener() {
-        // Eğer valueEventListener başlatılmamışsa, başlat
-        if (!::valueEventListener.isInitialized) {
-            valueEventListener = object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    rooms.clear()
-                    for (roomSnapshot in snapshot.children) {
+        valueEventListener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                rooms.clear()
+
+                val allRooms = listOf("Kart1", "Kart2")
+                for (path in allRooms) {
+                    val pathSnapshot = snapshot.child(path)
+                    for (roomSnapshot in pathSnapshot.children) {
                         val name = roomSnapshot.child("name").getValue(String::class.java) ?: ""
                         val ip = roomSnapshot.child("ip").getValue(String::class.java) ?: ""
                         val visible = roomSnapshot.child("visible").getValue(Boolean::class.java) ?: true
-                        val timer = roomSnapshot.child("timer").getValue(Int::class.java) // Timer varsa al, yoksa null
-                        val role = roomSnapshot.child("role").getValue(String::class.java) // Role varsa al, yoksa null
+                        val timer = roomSnapshot.child("timer").getValue(Int::class.java)
+                        val role = roomSnapshot.child("role").getValue(String::class.java)
 
-                        // Room nesnesi oluştur
-                        val room = Room(name, ip, visible, timer, role)
+                        val room = Room(name, ip, visible, timer, role, path)
                         rooms.add(room)
-
-                        // Loglama ile kontrol edebilirsiniz
-                        Log.d("FirebaseRoomData", "Room: $name, Timer: $timer, Role: $role, Visible: $visible")
-                    }
-                    if (isAdded && context != null) {
-                        displayRooms()
                     }
                 }
 
-                override fun onCancelled(error: DatabaseError) {
-                    if (isAdded && context != null) {
-                        Toast.makeText(requireContext(), "Veriler yüklenemedi: ${error.message}", Toast.LENGTH_SHORT).show()
-                    }
+                if (isAdded && context != null) {
+                    displayRooms()
+                }
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                if (isAdded && context != null) {
+                    Toast.makeText(requireContext(), "Veriler yüklenemedi: ${error.message}", Toast.LENGTH_SHORT).show()
                 }
             }
         }
 
-        // Dinleyici eklemeden önce eski dinleyiciyi kaldır
-        database.child(selectedPath).removeEventListener(valueEventListener)
-
-        // Yeni dinleyiciyi ekle
-        database.child(selectedPath).addValueEventListener(valueEventListener)
+        database.addValueEventListener(valueEventListener)
     }
-
 
     override fun onDestroyView() {
         super.onDestroyView()
-        // Fragment yok edilirken dinleyiciyi kaldır
-        if (::valueEventListener.isInitialized) {
-            database.child(selectedPath).removeEventListener(valueEventListener)
-        }
+        database.removeEventListener(valueEventListener)
     }
 
     private fun displayRooms() {
         containerLayout?.removeAllViews()
 
-        for (room in rooms) {
-            if (loggedInEmail == "ckazanoglu@gmail.com" || room.visible) {
-            val row = LinearLayout(requireContext()).apply {
-                orientation = LinearLayout.HORIZONTAL
-                setPadding(8, 8, 8, 8)
-            }
+        val groupedRooms = rooms.groupBy { it.path } // rooms ve rooms2 altında gruplandır
 
-            val button = createButton(room)
-            button.setOnClickListener {
-                startButtonAnimation(button)
-                updateFirebaseState(room)
-                Toast.makeText(requireContext(), "${room.name} butonuna tıklandı.", Toast.LENGTH_SHORT).show()
+        for ((group, roomList) in groupedRooms) {
+            val groupTitle = TextView(requireContext()).apply {
+                text = group.capitalize()
+                textSize = 20f
+                setPadding(16, 16, 16, 8)
             }
+            containerLayout?.addView(groupTitle)
 
-            row.addView(button)
-            containerLayout?.addView(row)
-        }
+            for (room in roomList) {
+                if (loggedInEmail == "ckazanoglu@gmail.com" || room.visible) {
+                    val row = LinearLayout(requireContext()).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                        setPadding(8, 8, 8, 8)
+                    }
+
+                    val button = createButton(room)
+                    button.setOnClickListener {
+                        startButtonAnimation(button)
+                        updateFirebaseState(room)
+                        Toast.makeText(requireContext(), "${room.name} butonuna tıklandı.", Toast.LENGTH_SHORT).show()
+                    }
+
+                    row.addView(button)
+                    containerLayout?.addView(row)
+                }
+            }
         }
     }
-
-
 
     private fun createButton(room: Room): Button {
         val button = Button(requireContext()).apply {
             text = room.name
             textSize = 18f
+
+            setTextColor(
+                ContextCompat.getColor(
+                    requireContext(),
+                    if (room.role == "reverse") android.R.color.holo_red_dark else android.R.color.black
+                )
+            )
+
             setPadding(16, 16, 16, 16)
 
             val layoutParams = LinearLayout.LayoutParams(
@@ -168,19 +156,26 @@ class HomeFragment : Fragment() {
                 cornerRadius = 50f
                 setColor(ContextCompat.getColor(requireContext(), android.R.color.darker_gray))
             }
-
-            setTextColor(ContextCompat.getColor(requireContext(), android.R.color.black))
         }
 
         // Firebase'den gelen durumuna göre arka planı ayarla
-        val stateRef = database.child(selectedPath).child(room.name).child("state")
+        val stateRef = database.child(room.path).child(room.name).child("state")
         stateRef.get().addOnSuccessListener { snapshot ->
             val state = snapshot.getValue(Int::class.java) ?: 0
             val backgroundDrawable = button.background as GradientDrawable
-            backgroundDrawable.setColor(
-                if (state == 1) ContextCompat.getColor(requireContext(), android.R.color.holo_green_light)
-                else ContextCompat.getColor(requireContext(), android.R.color.darker_gray)
-            )
+            if (room.role == "reverse") {
+                // Reverse ise renkler ters şekilde ayarlanır
+                backgroundDrawable.setColor(
+                    if (state == 1) ContextCompat.getColor(requireContext(), android.R.color.darker_gray)
+                    else ContextCompat.getColor(requireContext(), android.R.color.holo_green_light)
+                )
+            } else {
+                // Normal durumda
+                backgroundDrawable.setColor(
+                    if (state == 1) ContextCompat.getColor(requireContext(), android.R.color.holo_green_light)
+                    else ContextCompat.getColor(requireContext(), android.R.color.darker_gray)
+                )
+            }
             button.invalidate()
         }.addOnFailureListener {
             Toast.makeText(requireContext(), "Veri yüklenirken hata oluştu: ${it.message}", Toast.LENGTH_SHORT).show()
@@ -189,8 +184,10 @@ class HomeFragment : Fragment() {
         return button
     }
 
+
+
     private fun updateFirebaseState(room: Room) {
-        val stateRef = database.child(selectedPath).child(room.name).child("state")
+        val stateRef = database.child(room.path).child(room.name).child("state")
         val timerRef = room.timer ?: 0
         val role = room.role
 
@@ -221,9 +218,6 @@ class HomeFragment : Fragment() {
             }
         }
     }
-
-
-
 
     private fun startButtonAnimation(button: Button) {
         val buttonBackground = button.background as GradientDrawable

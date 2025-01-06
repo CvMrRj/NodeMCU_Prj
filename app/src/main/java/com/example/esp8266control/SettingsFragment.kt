@@ -15,10 +15,8 @@ import com.google.firebase.database.*
 class SettingsFragment : Fragment() {
 
     private val rooms = mutableListOf<Room>()
-    private lateinit var loggedInEmail: String
     private lateinit var database: DatabaseReference
-    private lateinit var valueEventListener: ValueEventListener
-    private var selectedPath: String = "rooms" // Varsayılan olarak "rooms" path'i
+    private var selectedPath: String = "Kart1" // Varsayılan olarak "rooms" path'i
 
     companion object {
         fun newInstance(email: String): SettingsFragment {
@@ -30,10 +28,6 @@ class SettingsFragment : Fragment() {
         }
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        loggedInEmail = arguments?.getString("email") ?: "default@example.com"
-    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -46,10 +40,10 @@ class SettingsFragment : Fragment() {
 
         // Firebase referansı
         database = FirebaseDatabase.getInstance("https://esp8266-617c1-default-rtdb.europe-west1.firebasedatabase.app/")
-            .getReference()
+            .reference
 
         // Cihaz path'lerini tanımla
-        val paths = listOf("rooms", "rooms2")
+        val paths = listOf("Kart1", "Kart2")
         val spinnerAdapter = ArrayAdapter(
             requireContext(),
             android.R.layout.simple_spinner_item,
@@ -70,7 +64,7 @@ class SettingsFragment : Fragment() {
 
         // Oda ekleme butonu
         addRoomButton.setOnClickListener {
-            showAddRoomDialog(containerLayout)
+            showAddRoomDialog()
         }
 
         return view
@@ -79,22 +73,22 @@ class SettingsFragment : Fragment() {
     private fun setupFirebaseListener(containerLayout: LinearLayout) {
         database.child(selectedPath).addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                if (isAdded && context != null) {
-                    rooms.clear()
-                    for (roomSnapshot in snapshot.children) {
-                        val name = roomSnapshot.child("name").getValue(String::class.java) ?: ""
-                        val ip = roomSnapshot.child("ip").getValue(String::class.java) ?: ""
-                        val visible = roomSnapshot.child("visible").getValue(Boolean::class.java) ?: true
-                        rooms.add(Room(name, ip, visible))
-                    }
-                    listRooms(containerLayout)
+                rooms.clear()
+                for (roomSnapshot in snapshot.children) {
+                    val name = roomSnapshot.child("name").getValue(String::class.java) ?: ""
+                    val ip = roomSnapshot.child("ip").getValue(String::class.java) ?: ""
+                    val visible = roomSnapshot.child("visible").getValue(Boolean::class.java) ?: true
+                    val timer = roomSnapshot.child("timer").getValue(Int::class.java)
+                    val role = roomSnapshot.child("role").getValue(String::class.java)
+
+                    val room = Room(name, ip, visible, timer, role, selectedPath)
+                    rooms.add(room)
                 }
+                listRooms(containerLayout)
             }
 
             override fun onCancelled(error: DatabaseError) {
-                if (isAdded && context != null) {
-                    Toast.makeText(requireContext(), "Veriler yüklenemedi: ${error.message}", Toast.LENGTH_SHORT).show()
-                }
+                Toast.makeText(requireContext(), "Veriler yüklenemedi: ${error.message}", Toast.LENGTH_SHORT).show()
             }
         })
     }
@@ -112,6 +106,12 @@ class SettingsFragment : Fragment() {
                 val textView = TextView(safeContext).apply {
                     text = room.name
                     textSize = 16f
+                    setTextColor(
+                        ContextCompat.getColor(
+                            safeContext,
+                            if (room.role == "reverse") android.R.color.holo_red_dark else android.R.color.white
+                        )
+                    )
                     layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
                 }
 
@@ -125,7 +125,7 @@ class SettingsFragment : Fragment() {
                 val editButton = Button(safeContext).apply {
                     text = "EDIT"
                     setOnClickListener {
-                        showEditRoomDialog(room, containerLayout)
+                        showEditRoomDialog(room)
                     }
                 }
 
@@ -135,7 +135,7 @@ class SettingsFragment : Fragment() {
                     scaleType = ImageView.ScaleType.FIT_CENTER
                     adjustViewBounds = true
                     setOnClickListener {
-                        showDeleteConfirmationDialog(room, containerLayout)
+                        showDeleteConfirmationDialog(room)
                     }
                 }
 
@@ -163,9 +163,9 @@ class SettingsFragment : Fragment() {
         }
     }
 
+
     private fun updateRoomVisibilityInFirebase(room: Room, isVisible: Boolean) {
-        // Doğru path'i seçmek için selectedPath'i kullan
-        val roomRef = database.child(selectedPath).child(room.name).child("visible")
+        val roomRef = database.child(room.path).child(room.name).child("visible")
         roomRef.setValue(isVisible).addOnCompleteListener { task ->
             if (task.isSuccessful) {
                 Toast.makeText(requireContext(), "${room.name} görünürlüğü güncellendi.", Toast.LENGTH_SHORT).show()
@@ -175,26 +175,38 @@ class SettingsFragment : Fragment() {
         }
     }
 
-
-    private fun showAddRoomDialog(containerLayout: LinearLayout) {
+    private fun showAddRoomDialog() {
         val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_add_room, null)
         val etRoomName = dialogView.findViewById<EditText>(R.id.etRoomName)
         val etRoomOutput = dialogView.findViewById<EditText>(R.id.etRoomIp)
         val spinnerTimer = dialogView.findViewById<Spinner>(R.id.spinnerTimer)
-        val roleSpinner = dialogView.findViewById<Spinner>(R.id.spinnerRole) // Yeni spinner
+        val spinnerRole = dialogView.findViewById<Spinner>(R.id.spinnerRole)
 
         // Timer için Spinner seçenekleri
-        val timerOptions = mutableListOf("Yok")
-        timerOptions.addAll((1..20).map { "$it saniye" })
-        val timerAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, timerOptions)
+        val initialTimerOptions = listOf("Timer") // İlk görünüm
+        val expandedTimerOptions = mutableListOf("None") // Genişletilmiş seçenekler
+        expandedTimerOptions.addAll((1..20).map { "$it saniye" })
+
+        val timerAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, initialTimerOptions)
         timerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         spinnerTimer.adapter = timerAdapter
 
+        // Spinner'a tıklandığında seçenekleri genişlet
+        spinnerTimer.setOnTouchListener { view, _ ->
+            if (spinnerTimer.adapter.count == initialTimerOptions.size) {
+                val expandedAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, expandedTimerOptions)
+                expandedAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+                spinnerTimer.adapter = expandedAdapter
+            }
+            view.performClick() // performClick çağrısını ekledik
+            false
+        }
+
         // Role için Spinner seçenekleri
-        val roleOptions = listOf("Normal", "Reverse")
+        val roleOptions = listOf("Normal", "Röle")
         val roleAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, roleOptions)
         roleAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        roleSpinner.adapter = roleAdapter
+        spinnerRole.adapter = roleAdapter
 
         AlertDialog.Builder(requireContext())
             .setTitle("Yeni Oda Ekle")
@@ -202,13 +214,17 @@ class SettingsFragment : Fragment() {
             .setPositiveButton("Kaydet") { _, _ ->
                 val roomName = etRoomName.text.toString()
                 val espOutput = etRoomOutput.text.toString()
-                val selectedTimer = spinnerTimer.selectedItemPosition
-                val selectedRole = roleSpinner.selectedItem.toString()
+                val selectedTimer = spinnerTimer.selectedItem.toString()
+                val selectedRole = if (spinnerRole.selectedItem.toString() == "Röle") "reverse" else null
+
+                val timerValue = when {
+                    selectedTimer == "None" -> null
+                    selectedTimer.endsWith("saniye") -> selectedTimer.replace(" saniye", "").toInt()
+                    else -> null
+                }
 
                 if (roomName.isNotEmpty() && espOutput.isNotEmpty()) {
-                    val timerValue = if (selectedTimer == 0) null else selectedTimer
-                    val roleValue = if (selectedRole == "Reverse") "reverse" else null
-                    val newRoom = Room(roomName, espOutput, true, timerValue, roleValue)
+                    val newRoom = Room(roomName, espOutput, true, timerValue, selectedRole,selectedPath)
                     addRoomToFirebase(newRoom)
                 } else {
                     Toast.makeText(requireContext(), "Lütfen tüm alanları doldurun.", Toast.LENGTH_SHORT).show()
@@ -224,7 +240,8 @@ class SettingsFragment : Fragment() {
         val roomRef = database.child(selectedPath).child(room.name)
         roomRef.setValue(room).addOnCompleteListener { task ->
             if (task.isSuccessful) {
-                roomRef.child("state").setValue(0).addOnCompleteListener { stateTask ->
+                val initialState = if (room.role == "reverse") 1 else 0 // Eğer role "reverse" ise state 1
+                roomRef.child("state").setValue(initialState).addOnCompleteListener { stateTask ->
                     if (stateTask.isSuccessful) {
                         Toast.makeText(requireContext(), "${room.name} başarıyla eklendi.", Toast.LENGTH_SHORT).show()
                     } else {
@@ -238,34 +255,35 @@ class SettingsFragment : Fragment() {
     }
 
 
-    private fun showEditRoomDialog(room: Room, containerLayout: LinearLayout) {
+    private fun showEditRoomDialog(room: Room) {
         val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_add_room, null)
         val etRoomName = dialogView.findViewById<EditText>(R.id.etRoomName)
         val etRoomOutput = dialogView.findViewById<EditText>(R.id.etRoomIp)
         val spinnerTimer = dialogView.findViewById<Spinner>(R.id.spinnerTimer)
+        val spinnerRole = dialogView.findViewById<Spinner>(R.id.spinnerRole) // Yeni spinner
 
-        // Timer için Spinner seçeneklerini oluştur
+        // Timer için Spinner seçenekleri
         val timerOptions = mutableListOf("Yok")
         timerOptions.addAll((1..20).map { "$it saniye" })
-        val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, timerOptions)
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        spinnerTimer.adapter = adapter
+        val timerAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, timerOptions)
+        timerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        spinnerTimer.adapter = timerAdapter
 
-        // Firebase'den mevcut oda bilgilerini getir
-        val roomRef = database.child(selectedPath).child(room.name)
-        roomRef.get().addOnSuccessListener { snapshot ->
-            if (snapshot.exists()) {
-                val ip = snapshot.child("ip").getValue(String::class.java) ?: room.ip
-                val timerValue = snapshot.child("timer").getValue(Int::class.java)
-                val selectedTimerPosition = timerValue?.let { timerOptions.indexOf("$it saniye") } ?: 0
+        // Role için Spinner seçenekleri
+        val roleOptions = listOf("Normal", "Reverse")
+        val roleAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, roleOptions)
+        roleAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        spinnerRole.adapter = roleAdapter
 
-                etRoomName.setText(room.name)
-                etRoomOutput.setText(ip)
-                spinnerTimer.setSelection(selectedTimerPosition)
-            }
-        }.addOnFailureListener {
-            Toast.makeText(requireContext(), "Oda bilgileri yüklenemedi: ${it.message}", Toast.LENGTH_SHORT).show()
-        }
+        // Mevcut değerleri doldur
+        etRoomName.setText(room.name)
+        etRoomOutput.setText(room.ip)
+
+        val timerIndex = room.timer?.let { timerOptions.indexOf("$it saniye") } ?: 0
+        spinnerTimer.setSelection(timerIndex)
+
+        val roleIndex = if (room.role == "reverse") 1 else 0 // Role için index belirle
+        spinnerRole.setSelection(roleIndex)
 
         AlertDialog.Builder(requireContext())
             .setTitle("Odayı Düzenle")
@@ -274,10 +292,11 @@ class SettingsFragment : Fragment() {
                 val updatedName = etRoomName.text.toString()
                 val updatedIp = etRoomOutput.text.toString()
                 val selectedTimer = spinnerTimer.selectedItemPosition
+                val timerValue = if (selectedTimer == 0) null else selectedTimer
+                val selectedRole = if (spinnerRole.selectedItem.toString() == "Reverse") "reverse" else null
 
                 if (updatedName.isNotEmpty() && updatedIp.isNotEmpty()) {
-                    val timerValue = if (selectedTimer == 0) null else selectedTimer
-                    updateRoomInFirebase(room, updatedName, updatedIp, timerValue)
+                    updateRoomInFirebase(room, updatedName, updatedIp, timerValue, selectedRole)
                 } else {
                     Toast.makeText(requireContext(), "Lütfen tüm alanları doldurun.", Toast.LENGTH_SHORT).show()
                 }
@@ -288,14 +307,12 @@ class SettingsFragment : Fragment() {
     }
 
 
-    private fun updateRoomInFirebase(room: Room, newName: String, newIp: String, newTimer: Int?) {
-        // Eski path'i doğru bir şekilde silmek için selectedPath kullanılıyor
+    private fun updateRoomInFirebase(room: Room, newName: String, newIp: String, newTimer: Int?, newRole: String?) {
         val oldRoomRef = database.child(selectedPath).child(room.name)
         oldRoomRef.removeValue().addOnCompleteListener { removeTask ->
             if (removeTask.isSuccessful) {
-                // Yeni path'e güncel verileri eklemek için selectedPath kullanılıyor
                 val newRoomRef = database.child(selectedPath).child(newName)
-                val updatedRoom = room.copy(name = newName, ip = newIp, timer = newTimer)
+                val updatedRoom = room.copy(name = newName, ip = newIp, timer = newTimer, role = newRole)
                 newRoomRef.setValue(updatedRoom).addOnCompleteListener { setTask ->
                     if (setTask.isSuccessful) {
                         Toast.makeText(requireContext(), "$newName başarıyla güncellendi.", Toast.LENGTH_SHORT).show()
@@ -310,34 +327,28 @@ class SettingsFragment : Fragment() {
     }
 
 
-    private fun showDeleteConfirmationDialog(room: Room, containerLayout: LinearLayout) {
+
+    private fun showDeleteConfirmationDialog(room: Room) {
         AlertDialog.Builder(requireContext())
             .setTitle("Odayı Sil")
             .setMessage("${room.name} adlı odayı silmek istediğinize emin misiniz?")
             .setPositiveButton("Evet") { _, _ ->
-                deleteRoomFromFirebase(room, containerLayout)
+                deleteRoomFromFirebase(room)
             }
             .setNegativeButton("Hayır") { dialog, _ -> dialog.dismiss() }
             .create()
             .show()
     }
 
-    private fun deleteRoomFromFirebase(room: Room, containerLayout: LinearLayout) {
-        // Silme işleminde selectedPath kullanılarak doğru path'e erişilir
-        val roomRef = database.child(selectedPath).child(room.name)
+    private fun deleteRoomFromFirebase(room: Room) {
+        val roomRef = database.child(room.path).child(room.name)
         roomRef.removeValue().addOnCompleteListener { task ->
             if (task.isSuccessful) {
-                rooms.remove(room) // Odayı listeden çıkar
-                listRooms(containerLayout) // Listeyi yeniden oluştur
+                rooms.remove(room)
                 Toast.makeText(requireContext(), "${room.name} başarıyla silindi.", Toast.LENGTH_SHORT).show()
             } else {
-                Toast.makeText(requireContext(), "Silme işlemi başarısız: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), "Silinemedi: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
             }
         }
-    }
-
-    override fun onDestroyView() {
-        super.onDestroyView()
-        database.removeEventListener(valueEventListener)
     }
 }

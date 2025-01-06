@@ -6,22 +6,25 @@ data class Room(
     val ip: String,
     var visible: Boolean,
     val timer: Int? = null, // Timer alanı
-    val role: String? = null // Role alanı
+    val role: String? = null, // Role alanı
+    val path: String // Path alanı
 ) : Parcelable {
     constructor(parcel: Parcel) : this(
         parcel.readString() ?: "",
         parcel.readString() ?: "",
         parcel.readByte() != 0.toByte(),
-        parcel.readValue(Int::class.java.classLoader) as? Int, // Timer okunuyor
-        parcel.readString() // Role okunuyor
+        parcel.readValue(Int::class.java.classLoader) as? Int,
+        parcel.readString(),
+        parcel.readString() ?: "" // Path bilgisi
     )
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
         parcel.writeString(name)
         parcel.writeString(ip)
         parcel.writeByte(if (visible) 1 else 0)
-        parcel.writeValue(timer) // Timer yazılıyor
-        parcel.writeString(role) // Role yazılıyor
+        parcel.writeValue(timer)
+        parcel.writeString(role)
+        parcel.writeString(path) // Path yazılıyor
     }
 
     override fun describeContents(): Int = 0
