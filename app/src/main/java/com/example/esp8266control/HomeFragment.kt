@@ -99,7 +99,7 @@ class HomeFragment : Fragment() {
     private fun displayRooms() {
         containerLayout?.removeAllViews()
 
-        val groupedRooms = rooms.groupBy { it.path } // rooms ve rooms2 altında gruplandır
+        val groupedRooms = rooms.groupBy { it.path } // Group rooms by path
 
         for ((group, roomList) in groupedRooms) {
             val groupTitle = TextView(requireContext()).apply {
@@ -118,7 +118,7 @@ class HomeFragment : Fragment() {
 
                     val button = createButton(room)
                     button.setOnClickListener {
-                        startButtonAnimation(button)
+                        startButtonAnimation(button, room.role == "reverse")
                         updateFirebaseState(room)
                     }
 
@@ -128,6 +128,7 @@ class HomeFragment : Fragment() {
             }
         }
     }
+
 
     private fun createButton(room: Room): RelativeLayout {
         // Dış layout (butonun tamamı)
@@ -150,10 +151,7 @@ class HomeFragment : Fragment() {
             id = View.generateViewId()
             text = room.name
             textSize = 18f
-            setTextColor(
-                if (room.role == "reverse") ContextCompat.getColor(requireContext(), android.R.color.holo_red_light)
-                else ContextCompat.getColor(requireContext(), android.R.color.black)
-            )
+            setTextColor(ContextCompat.getColor(requireContext(), android.R.color.black))
             val textParams = RelativeLayout.LayoutParams(
                 RelativeLayout.LayoutParams.WRAP_CONTENT,
                 RelativeLayout.LayoutParams.WRAP_CONTENT
@@ -165,31 +163,9 @@ class HomeFragment : Fragment() {
             layoutParams = textParams
         }
 
-        // Reverse simgesi (Eğer Reverse ise)
-        val reverseIcon = ImageView(requireContext()).apply {
-            if (room.role == "reverse") {
-                setImageResource(R.drawable.relay_home) // Reverse simgenizin drawable adı
-                val iconParams = RelativeLayout.LayoutParams(
-                    80,
-                    80
-                ).apply {
-                    addRule(RelativeLayout.CENTER_VERTICAL)
-                    addRule(RelativeLayout.ALIGN_PARENT_END)
-                    marginEnd = 24
-                }
-                layoutParams = iconParams
-            } else {
-                visibility = View.GONE
-            }
-        }
-
-        // Reverse simgesini ve oda adını layout'a ekle
-        container.addView(textView)
-        if (room.role == "reverse") container.addView(reverseIcon)
-
         // Buton tıklama olayları
         container.setOnClickListener {
-            startButtonAnimation(container)
+            startButtonAnimation(container, room.role == "reverse")
             updateFirebaseState(room)
         }
 
@@ -214,6 +190,7 @@ class HomeFragment : Fragment() {
             Toast.makeText(requireContext(), "Veri yüklenirken hata oluştu: ${it.message}", Toast.LENGTH_SHORT).show()
         }
 
+        container.addView(textView)
         return container
     }
 
@@ -252,10 +229,14 @@ class HomeFragment : Fragment() {
         }
     }
 
-    private fun startButtonAnimation(view: View) {
+    private fun startButtonAnimation(view: View, isReverse: Boolean) {
         val buttonBackground = view.background as GradientDrawable
         val originalColor = ContextCompat.getColor(requireContext(), android.R.color.darker_gray)
-        val activeColor = ContextCompat.getColor(requireContext(), android.R.color.holo_green_light)
+        val activeColor = if (isReverse) {
+            ContextCompat.getColor(requireContext(), android.R.color.holo_red_dark)
+        } else {
+            ContextCompat.getColor(requireContext(), android.R.color.holo_green_light)
+        }
 
         val animator = ValueAnimator.ofFloat(0f, 1f).apply {
             duration = 3000 // 3 saniyelik bir animasyon
